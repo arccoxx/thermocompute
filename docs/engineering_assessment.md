@@ -7,7 +7,8 @@ before presenting it publicly.
 ## Added In This Pass
 
 - CI workflow for Linux/Python 3.10 and 3.12.
-- Physical MIT license file matching package metadata.
+- Physical PolyForm Noncommercial license file matching package metadata.
+- Commercial licensing and contribution policy files.
 - Generic probability distribution support through `torch.distributions`.
 - Custom distribution adapter for user-provided distribution objects.
 - First-order FFN memory estimators for classical and thermodynamic layers.
@@ -38,6 +39,11 @@ before presenting it publicly.
 - Distribution support covers any distribution available through
   `torch.distributions` plus custom adapters. It does not implement every named
   distribution ever described in probability theory from scratch.
+- Earlier public commits were released under MIT. The current noncommercial
+  license protects future versions, but it cannot retroactively remove rights
+  already granted for older versions.
+- If outside contributions become significant, a formal CLA is stronger than
+  the lightweight `CONTRIBUTING.md` certification.
 
 ## Next Senior-Engineer Improvements
 
@@ -47,3 +53,5 @@ before presenting it publicly.
 - Add checkpointed/custom backward for thermodynamic integration.
 - Add optional custom kernels for chunked projected inference.
 - Add versioned benchmark baselines so regressions are visible over time.
+- Have counsel review the noncommercial/commercial licensing posture before
+  relying on it for a large transaction.

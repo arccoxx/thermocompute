@@ -67,6 +67,24 @@ modeled physical time = how long the corresponding thermodynamic substrate runs
 The first one is a practical software result. The second one is the GPU-only
 opportunity. The third one is the hardware-theory anchor.
 
+## License And Commercial Use
+
+Current versions of `thermocompute` are source-available under the
+PolyForm Noncommercial License 1.0.0. The code is public for research,
+inspection, experimentation, education, and other noncommercial use.
+
+Commercial use requires a separate written commercial license from the project
+owner. See [COMMERCIAL.md](COMMERCIAL.md).
+
+Contributions are welcome only under terms that preserve this dual-license
+option. See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+This repository was previously published under MIT. Those older versions keep
+the terms they were already released under, but future versions are distributed
+under the current noncommercial license unless the project owner grants
+different terms. The project owner may relicense future versions or grant
+commercial licenses at their discretion.
+
 ## Use Cases
 
 ### 1. GPU-Only Thermodynamic Layers Today
