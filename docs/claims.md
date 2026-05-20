@@ -8,6 +8,7 @@
 - Wider thermodynamic blocks can be evaluated under a constant physical-time model while classical FFN FLOP proxies grow with width.
 - The superiority demo makes the same comparison against a dense digital FFN work proxy and explicitly records state-of-the-art context: optimized attention kernels do not remove the width-dependent FFN term.
 - Training APIs exist for conventional cold training, parallel-tempered full-model training, readout alignment, and sparse readout mask search.
+- The default engineering path is no-replica inference/training (`n_replicas=1`, `tempering=False`). Parallel tempering is optional and should be justified by task-specific evidence.
 
 ## What The CUDA Benchmarks Suggest
 
@@ -21,8 +22,10 @@
 - Parameter memory remains linear in thermodynamic width because current weights and readout weights must still be stored.
 - The PyTorch emulator now supports chunked projected inference for `ThermodynamicFFN`, `ThermodynamicTransformerLayer`, and `ThermodynamicTransformerBlock`.
 - Chunking reduces peak thermodynamic state/activation memory from width-proportional `O(batch * seq * width * replicas)` to `O(batch * seq * chunk_size * replicas)`.
+- In the best no-replica case, chunked state memory is `O(batch * seq * chunk_size)` while parameter memory remains `O(width * (input_dim + output_dim))`, comparable to a dense classical FFN plus small thermodynamic coefficients.
 - Chunking can increase emulator wall time because chunks execute sequentially in software.
 - Chunking does not change modeled physical time; it is an emulator memory strategy for representing a parallel physical array on finite VRAM.
+- Cold no-replica training works with the chunked path, but autograd may retain chunk graphs and integration intermediates; the strongest memory guarantee is currently for inference.
 
 ## What This Does Not Prove
 

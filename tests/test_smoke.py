@@ -149,6 +149,32 @@ def test_memory_efficient_transformer_layer_matches_full_deterministic() -> None
     assert info_full.physical_time == info_chunked.physical_time
 
 
+def test_no_replica_memory_efficient_cold_training() -> None:
+    torch.manual_seed(17)
+    x = torch.randn(6, 3, 6)
+    target = torch.zeros_like(x)
+    layer = ThermodynamicTransformerLayer(
+        6,
+        2,
+        thermo_hidden_dim=14,
+        t_f=0.1,
+        dt=0.05,
+        temperature=0.0,
+        memory_efficient_chunk_size=5,
+    )
+    assert layer.thermo_ff.n_replicas == 1
+    assert not layer.thermo_ff.tempering
+    result = fit_transformer_end_to_end_cold(
+        layer,
+        x,
+        target,
+        n_steps=6,
+        learning_rate=5e-3,
+    )
+    assert result.memory_replicas == 1
+    assert result.final_train_loss < result.initial_train_loss
+
+
 def test_integration_block_reports_tempering_swaps() -> None:
     config = ThermodynamicTransformerConfig(
         embed_dim=8,

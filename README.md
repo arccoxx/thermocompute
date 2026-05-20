@@ -92,6 +92,18 @@ classical dense FFN width. That makes the package useful for:
 - energy-based or diffusion-like latent transformations
 - fast ablations before thermodynamic hardware exists
 
+The default engineering path is **no replica**:
+
+```text
+n_replicas = 1
+tempering = False
+```
+
+This is the fastest and most memory-efficient mode. Parallel tempering remains
+available, but it is an optional exploration method for rugged objectives. In
+our current small end-to-end experiment it added cost and provided little
+benefit, so the package should be evaluated first in the no-replica setting.
+
 Use the benchmark scripts to measure your own plateau:
 
 ```powershell
@@ -113,6 +125,10 @@ readout. The API already exposes the hardware-relevant knobs:
 - `temperature`: noise strength
 - `j2`, `j3`, `j4`: quartic potential shape
 - `n_replicas`, `tempering`, `swap_interval`: replica and tempering schedule
+
+The no-replica path maps to one thermodynamic array and one readout. Replica
+ladders map to additional arrays and should be treated as an expensive
+capability, not the default substrate assumption.
 
 That makes `thermocompute` a bridge: run GPU-only experiments now, then map
 successful thermodynamic blocks to future physical arrays.
@@ -283,7 +299,7 @@ block_config = ThermodynamicTransformerConfig(
     embed_dim=64,
     num_heads=4,
     thermo_hidden_dim=512,
-    neuron=ThermodynamicNeuronConfig(t_f=0.2, dt=0.04, n_replicas=2, output="mean"),
+    neuron=ThermodynamicNeuronConfig(t_f=0.2, dt=0.04),
     memory_efficient_chunk_size=128,
 )
 block = ThermodynamicTransformerBlock(block_config).to(device)
@@ -416,6 +432,93 @@ y, info = layer(tokens, chunk_size=4096, return_info=True)
 The same option is available on `ThermodynamicFFN` and
 `ThermodynamicTransformerConfig`.
 
+### Best-Case Memory Scaling: No Replicas
+
+For production GPU use, the best case is the no-replica thermodynamic FFN:
+
+```text
+R = 1
+tempering = False
+memory_efficient_chunk_size = C
+```
+
+Compare a classical dense FFN and a no-replica thermodynamic FFN with:
+
+```text
+D = input/embed dimension
+E = output/embed dimension
+H = hidden thermodynamic width
+N = batch * sequence length
+q = bytes per scalar
+C = chunk size
+```
+
+Classical dense FFN:
+
+```text
+params_classical ~= H(D + E)
+activation_classical_peak ~= N H
+M_classical_peak ~= q [ H(D + E) + N H + N E ]
+```
+
+No-replica thermodynamic FFN, unchunked:
+
+```text
+params_thermo ~= H(D + E + 4)
+state_thermo_peak ~= N H (1 + overhead)
+M_thermo_peak ~= q [ H(D + E + 4) + N H(1 + overhead) + N E ]
+```
+
+No-replica thermodynamic FFN, chunked:
+
+```text
+params_thermo ~= H(D + E + 4)
+state_thermo_chunked_peak ~= N C (1 + overhead)
+M_thermo_chunked_peak ~= q [ H(D + E + 4) + N C(1 + overhead) + N E ]
+```
+
+So the best-case no-replica memory result is:
+
+```text
+parameter memory:  O(H), essentially comparable to classical dense FFN
+state memory:      O(NC), independent of full width H when chunked
+replica overhead:  none
+```
+
+This does not make thermodynamic layers parameter-light. The current dense
+readout still stores `D -> H` current weights and `H -> E` readout weights.
+The win is that peak stochastic state/activation memory can be capped by `C`
+instead of `H`, and the modeled physical-time claim remains tied to the full
+parallel array.
+
+For classical dense FFNs, the arithmetic cost still scales with `H`:
+
+```text
+F_classical ~= 2N H(D + E)
+```
+
+For the thermodynamic hardware model, width maps to physical sites:
+
+```text
+T_thermo_physical ~= t_f
+```
+
+For the PyTorch emulator, chunking trades memory for software time:
+
+```text
+num_chunks = ceil(H / C)
+```
+
+Use chunking when VRAM is the bottleneck. Use larger chunks when wall-clock
+latency is the bottleneck and VRAM is available.
+
+Cold no-replica training also works with `memory_efficient_chunk_size`, but
+training memory is harder than inference memory because autograd may retain
+chunk graphs and integration intermediates for backward. Treat chunked cold
+training as a compatibility path today; the strongest memory guarantee is for
+inference. Future checkpointing or custom backward kernels should improve the
+training side.
+
 ### BinaryPBit
 
 `BinaryPBit` is a Bernoulli sampler controlled by a voltage-like input:
@@ -495,8 +598,6 @@ layer = ThermodynamicNeuronLayer(
     temperature=1.0,
     t_f=0.5,
     dt=0.025,
-    n_replicas=4,
-    tempering=True,
 ).to(device)
 
 y, info = layer(x, return_info=True)
@@ -525,8 +626,6 @@ model = ThermodynamicMLP(
     [16, 128, 128, 8],
     t_f=0.4,
     dt=0.04,
-    n_replicas=4,
-    tempering=True,
 ).to(device)
 
 y, info = model(x, return_info=True)
@@ -563,8 +662,7 @@ layer = ThermodynamicTransformerLayer(
     attention_mode="softmax",
     t_f=0.4,
     dt=0.04,
-    n_replicas=4,
-    tempering=True,
+    memory_efficient_chunk_size=512,
 ).to(device)
 
 y, info = layer(tokens, return_info=True)
@@ -658,8 +756,7 @@ layer = ThermodynamicTransformerLayer(
     thermo_hidden_dim=1024,
     t_f=0.2,
     dt=0.04,
-    n_replicas=4,
-    thermo_output="mean",
+    memory_efficient_chunk_size=256,
 ).to(device)
 
 tokens = torch.randn(128, 16, 64, device=device)
@@ -685,11 +782,61 @@ path whose expensive nonlinear feature generation has the same parallel
 physical-time structure as inference. The digital work is the ridge solve and
 readout programming.
 
+### Cold End-To-End Training
+
+`fit_transformer_end_to_end_cold` exposes ordinary single-replica end-to-end
+training. This is the default no-ridge training path: no replica ladder, no
+tempering swaps, and the lowest memory footprint among the end-to-end methods.
+It is the right first choice for smooth objectives, large widths, and GPU-only
+experiments.
+
+```python
+from thermocompute import ThermodynamicTransformerLayer, fit_transformer_end_to_end_cold
+
+layer = ThermodynamicTransformerLayer(
+    embed_dim=32,
+    num_heads=4,
+    thermo_hidden_dim=128,
+    t_f=0.2,
+    dt=0.04,
+    memory_efficient_chunk_size=64,
+).to(device)
+
+fit = fit_transformer_end_to_end_cold(
+    layer,
+    train_tokens,
+    train_targets,
+    eval_inputs=eval_tokens,
+    eval_targets=eval_targets,
+    n_steps=40,
+    learning_rate=4e-3,
+)
+
+print(fit.final_train_loss)
+print(fit.final_eval_loss)
+print(fit.fit_wall_ms)
+```
+
+Use cold training when:
+
+- the objective is smooth or easy
+- you need the cheapest no-ridge baseline
+- memory is tight
+- training time matters more than exploration
+- you have not yet shown that replica ladders help your scale/task
+
+In the current toy inductive transformer experiment, cold training performs
+surprisingly well: it reaches nearly the same train and eval loss as the
+parallel-tempered version while using one model replica instead of five. The PT
+version gives a small eval improvement, but costs more wall time and memory.
+
 ### Parallel Tempered End-To-End Training
 
-`fit_transformer_end_to_end_parallel_tempering` is the direct inductive
-training method: no ridge solve, no closed-form readout fitting, and no frozen
-reservoir assumption.
+`fit_transformer_end_to_end_parallel_tempering` is an optional exploration
+method: no ridge solve, no closed-form readout fitting, and no frozen reservoir
+assumption, but it keeps several full model copies. Use it only after a cold
+single-replica baseline gets stuck or when there is evidence the task has a
+rugged loss landscape.
 
 The method keeps several full copies of the transformer layer:
 
@@ -712,8 +859,7 @@ layer = ThermodynamicTransformerLayer(
     thermo_hidden_dim=128,
     t_f=0.2,
     dt=0.04,
-    n_replicas=2,
-    thermo_output="mean",
+    memory_efficient_chunk_size=64,
 ).to(device)
 
 fit = fit_transformer_end_to_end_parallel_tempering(
@@ -734,54 +880,6 @@ print(fit.final_eval_loss)
 print(fit.swap_acceptance)
 ```
 
-This is the cleanest training counterpart to the inference story because it is
-end-to-end and inductive. It still runs in software here, but structurally it
-matches the thermodynamic idea: many parameter states explore in parallel,
-temperature helps escape poor basins, and the selected model still performs
-fixed-time thermodynamic inference.
-
-### Cold End-To-End Training
-
-`fit_transformer_end_to_end_cold` exposes the ordinary single-replica version of
-end-to-end training. It is useful enough to keep as a public method because on
-simple or smooth objectives it can match parallel-tempered training closely
-while using much less memory and wall time.
-
-```python
-from thermocompute import ThermodynamicTransformerLayer, fit_transformer_end_to_end_cold
-
-layer = ThermodynamicTransformerLayer(
-    embed_dim=32,
-    num_heads=4,
-    thermo_hidden_dim=128,
-    t_f=0.2,
-    dt=0.04,
-    n_replicas=2,
-    thermo_output="mean",
-).to(device)
-
-fit = fit_transformer_end_to_end_cold(
-    layer,
-    train_tokens,
-    train_targets,
-    eval_inputs=eval_tokens,
-    eval_targets=eval_targets,
-    n_steps=40,
-    learning_rate=4e-3,
-)
-
-print(fit.final_train_loss)
-print(fit.final_eval_loss)
-print(fit.fit_wall_ms)
-```
-
-Use cold training when:
-
-- the objective is smooth or easy
-- you need a cheap baseline
-- memory is tight
-- training time matters more than exploration
-
 Use parallel-tempered end-to-end training when:
 
 - losses are rugged or multimodal
@@ -789,10 +887,10 @@ Use parallel-tempered end-to-end training when:
 - extra memory for full replicas is acceptable
 - a small accuracy gain is worth more training compute
 
-In the current toy inductive transformer experiment, cold training performs
-surprisingly well: it reaches nearly the same train and eval loss as the
-parallel-tempered version while using one model replica instead of five. The PT
-version gives a small eval improvement, but costs more wall time and memory.
+This is not currently the package's main scaling result. We have not yet shown
+that parallel tempering becomes more valuable at large thermodynamic width. It
+is included because it is a plausible exploration tool, not because it beat the
+no-replica path in the first experiment.
 
 ### Parallel Tempered Mask Alignment
 
@@ -822,8 +920,7 @@ layer = ThermodynamicTransformerLayer(
     thermo_hidden_dim=1024,
     t_f=0.2,
     dt=0.04,
-    n_replicas=4,
-    thermo_output="mean",
+    memory_efficient_chunk_size=256,
 ).to(device)
 
 fit = fit_transformer_readout_parallel_tempering(
@@ -891,7 +988,8 @@ Current experiments include:
 - Parallel Tempered Mask Alignment for sparse thermodynamic readout training.
 - End-to-end parallel-tempered inductive transformer training with no ridge
   solve.
-- Cold single-replica end-to-end inductive training as a cheaper baseline.
+- Cold single-replica end-to-end inductive training as the default no-ridge
+  training path.
 - Superiority demo against dense digital FFN scaling: measured widths up to
   4096 and projected widths up to 65536, with modeled physical time flat and
   digital work increasing.
@@ -1077,11 +1175,12 @@ training stack: digital pretraining and routing where needed, local or
 closed-form readout alignment where possible, and thermodynamic inference for
 the wide stochastic nonlinear core.
 
-Parallel Tempered End-To-End Training is the more direct answer when a frozen
-reservoir is not enough. It trains the whole thermodynamic transformer layer by
-running multiple temperature replicas of the model itself. That gives a path
-toward ordinary inductive training while retaining thermodynamic exploration as
-the optimization mechanism.
+Parallel Tempered End-To-End Training is an optional answer when a frozen
+reservoir is not enough and the cold path appears stuck. It trains the whole
+thermodynamic transformer layer by running multiple temperature replicas of the
+model itself. That gives a path toward ordinary inductive training while
+retaining thermodynamic exploration as an optimization mechanism, but it should
+not be assumed to win without scale-specific evidence.
 
 Cold End-To-End Training matters for pragmatism. If a single replica already
 learns well, it is the right default because it is cheaper in memory and wall
@@ -1129,12 +1228,11 @@ Keep claims grounded when interpreting results:
   is independent of tensor width for all shapes.
 - Thermodynamic Readout Alignment is a fast readout-training method, not a
   complete replacement for all gradient-based training.
-- Parallel Tempered End-To-End Training is the no-ridge inductive baseline. It
-  is more expensive than readout alignment in the emulator because it trains
-  full model replicas.
-- Cold End-To-End Training is the cheapest no-ridge baseline. It can be close
-  in loss or accuracy on easy tasks, but it has less ability to escape poor
-  basins than the parallel-tempered version.
+- Cold End-To-End Training is the default no-ridge inductive path. It is the
+  first method to try when memory or training time matters.
+- Parallel Tempered End-To-End Training is an optional exploration upgrade. It
+  is more expensive because it trains full model replicas, and our current
+  small experiment did not show enough value to make it the default.
 - Parallel Tempered Mask Alignment uses tempering to search sparse readout
   structure. It is currently a training-time algorithm; inference still uses a
   single fixed thermodynamic pass.
