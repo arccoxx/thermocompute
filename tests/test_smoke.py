@@ -6,6 +6,9 @@ from torch import nn
 from thermocompute import (
     BinaryPBit,
     CategoricalPDIT,
+    DistributionAdapter,
+    DistributionSampler,
+    DistributionSpec,
     PhysicalTimeReport,
     PMODE,
     PMOG,
@@ -21,6 +24,9 @@ from thermocompute import (
     fit_transformer_readout_ridge,
     estimate_classical_ffn_memory,
     estimate_thermo_ffn_memory,
+    available_distributions,
+    make_distribution,
+    sample_distribution,
     replace_ffn,
     run_superiority_demo,
 )
@@ -194,6 +200,39 @@ def test_memory_estimators_show_chunked_state_reduction() -> None:
     assert thermo_chunked.peak_bytes < thermo_full.peak_bytes
 
 
+def test_generic_distribution_support() -> None:
+    assert "Normal" in available_distributions()
+
+    normal = DistributionSampler("normal", loc=torch.zeros(2), scale=torch.ones(2)).to(dtype=torch.float64)
+    samples = normal.sample((5,))
+    log_prob = normal.log_prob(samples)
+    assert samples.shape == (5, 2)
+    assert samples.dtype == torch.float64
+    assert log_prob.shape == (5, 2)
+    assert torch.isfinite(log_prob).all()
+
+    categorical = DistributionSampler("categorical", logits=torch.zeros(3, 4))
+    cat_samples = categorical.sample(7)
+    assert cat_samples.shape == (7, 3)
+
+    beta = make_distribution("beta", concentration1=torch.ones(3), concentration0=torch.ones(3) * 2)
+    beta_samples = beta.sample((16,))
+    assert beta_samples.shape == (16, 3)
+    assert torch.all((0.0 <= beta_samples) & (beta_samples <= 1.0))
+
+    direct = sample_distribution("normal", 4, loc=torch.zeros(2), scale=torch.ones(2))
+    assert direct.shape == (4, 2)
+
+    poisson_spec = DistributionSpec("poisson", {"rate": torch.ones(3) * 2.0})
+    poisson = poisson_spec.build()
+    assert poisson.sample((4,)).shape == (4, 3)
+
+    adapter = DistributionAdapter(torch.distributions.Uniform(torch.zeros(2), torch.ones(2)))
+    adapted = adapter.sample(6)
+    assert adapted.shape == (6, 2)
+    assert torch.isfinite(adapter.log_prob(adapted)).all()
+
+
 def test_integration_block_reports_tempering_swaps() -> None:
     config = ThermodynamicTransformerConfig(
         embed_dim=8,
@@ -364,8 +403,12 @@ def test_public_imports() -> None:
         "ThermodynamicTransformerBlock",
         "fit_transformer_end_to_end_cold",
         "fit_transformer_end_to_end_parallel_tempering",
+        "DistributionSampler",
+        "available_distributions",
         "estimate_classical_ffn_memory",
         "estimate_thermo_ffn_memory",
+        "make_distribution",
+        "sample_distribution",
         "run_superiority_demo",
         "__version__",
     ]

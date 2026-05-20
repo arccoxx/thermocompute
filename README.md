@@ -2,8 +2,8 @@
 
 `thermocompute` is a PyTorch-first emulator for thermodynamic probabilistic
 computing. It provides software models of p-bits/PDITs, PMODE Gaussian
-samplers, PMOG mixture samplers, and fixed-observation-time thermodynamic
-neuron layers.
+samplers, PMOG mixture samplers, generic `torch.distributions` probability
+families, and fixed-observation-time thermodynamic neuron layers.
 
 **The punchline:** `thermocompute` lets us study neural layers where width can
 behave more like parallel fabric than sequential latency. Today, that matters
@@ -312,6 +312,7 @@ print(block_info.physical_time)
 ```text
 thermocompute/
   primitives.py     p-bits, PDIT, PMODE, PMOG, Ising energy
+  distributions.py  generic torch.distributions wrappers and adapters
   neurons.py        fixed-time thermodynamic neuron layers and MLPs
   transformer.py    thermodynamic transformer attention and FFN blocks
   integration.py    production-shaped FFN/block wrappers and replacement helper
@@ -607,6 +608,62 @@ samples, modes = pmog.sample(logits, means, scales, n_samples=20000)
 The categorical logits set the mode probabilities, while `means` and `scales`
 set the local Gaussian parameters. `switch_rate` can be used to emulate mode
 resampling during the physical window.
+
+### Generic Probability Distributions
+
+The package does not try to reimplement every named probability law from
+scratch. Instead, it exposes a generic distribution layer over
+`torch.distributions`, plus an adapter for custom user-defined distributions.
+That gives broad practical coverage: every distribution available in the
+installed PyTorch build can be constructed, sampled, and scored through the
+same `thermocompute` API.
+
+```python
+import torch
+
+from thermocompute import (
+    DistributionAdapter,
+    DistributionSampler,
+    DistributionSpec,
+    available_distributions,
+    make_distribution,
+)
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
+print(available_distributions())
+
+normal = DistributionSampler(
+    "normal",
+    loc=torch.zeros(4096, device=device),
+    scale=torch.ones(4096, device=device),
+).to(device)
+
+samples = normal.sample(128)
+logp = normal.log_prob(samples)
+
+beta = make_distribution(
+    "beta",
+    concentration1=torch.ones(32, device=device) * 2,
+    concentration0=torch.ones(32, device=device) * 3,
+)
+
+spec = DistributionSpec("poisson", {"rate": torch.ones(16, device=device) * 4})
+poisson = spec.build()
+
+custom = DistributionAdapter(
+    torch.distributions.TransformedDistribution(
+        torch.distributions.Normal(torch.zeros(8, device=device), torch.ones(8, device=device)),
+        [torch.distributions.transforms.ExpTransform()],
+    )
+)
+custom_samples = custom.sample(64)
+```
+
+This is the maintainable version of "support every distribution": the package
+supports the full PyTorch distribution ecosystem and any custom distribution
+object that follows the `torch.distributions.Distribution` interface. Generic
+distribution sampling uses PyTorch's RNG behavior; use `set_seed(...)` for
+reproducibility.
 
 ### ThermodynamicNeuronLayer
 
@@ -1051,6 +1108,9 @@ The flagship demo artifacts are:
 ## What This Proves / What It Does Not Prove
 
 See [docs/claims.md](docs/claims.md) for the explicit claim boundary.
+See [docs/engineering_assessment.md](docs/engineering_assessment.md) for the
+maintainer-style assessment of current strengths, gaps, and next hardening
+steps.
 
 In short:
 

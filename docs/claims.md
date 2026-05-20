@@ -3,6 +3,7 @@
 ## What This Proves
 
 - `thermocompute` can emulate p-bits/PDITs, PMODE, PMOG, quartic thermodynamic neurons, and thermodynamic transformer-style blocks in PyTorch.
+- Generic distribution support covers any distribution available through `torch.distributions`, plus custom user-provided distribution adapters.
 - Fixed-depth thermodynamic neuron and transformer feed-forward layers report constant modeled physical time as width increases.
 - The benchmark suite separates modeled physical time from PyTorch wall time.
 - Wider thermodynamic blocks can be evaluated under a constant physical-time model while classical FFN FLOP proxies grow with width.
@@ -37,6 +38,7 @@
 - It does not prove real chip speedups or energy gains; there is no hardware backend yet.
 - It does not provide full production model support for every Hugging Face architecture.
 - It does not make the optional CUDA extension required or production-ready.
+- It does not reimplement every named distribution in probability theory from scratch; it delegates broad distribution coverage to PyTorch's distribution library.
 
 ## Current Best Claims
 

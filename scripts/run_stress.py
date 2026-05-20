@@ -12,6 +12,8 @@ import torch
 
 from thermocompute import (
     DeviceConfig,
+    DistributionAdapter,
+    DistributionSampler,
     ThermodynamicFFN,
     ThermodynamicNeuronConfig,
     ThermodynamicTransformerLayer,
@@ -32,6 +34,7 @@ def main() -> int:
     _stress_wide_no_replica_chunked_inference(metrics, device, dtype)
     _stress_chunked_cold_training(metrics, device, dtype)
     _stress_memory_laws(metrics)
+    _stress_distributions(metrics, device, dtype)
     _stress_invalid_chunk_sizes(metrics)
 
     print(json.dumps({"name": "stress_checks", "metrics": metrics}, indent=2))
@@ -144,6 +147,43 @@ def _stress_memory_laws(metrics: dict[str, object]) -> None:
     metrics["memory_law_thermo_full_peak_gb"] = thermo_full.peak_bytes / 1e9
     metrics["memory_law_thermo_chunked_peak_gb"] = thermo_chunked.peak_bytes / 1e9
     metrics["memory_law_chunked_state_reduction"] = thermo_full.state_bytes / thermo_chunked.state_bytes
+
+
+def _stress_distributions(metrics: dict[str, object], device: torch.device, dtype: torch.dtype) -> None:
+    families = {
+        "normal": {"loc": torch.zeros(4, device=device, dtype=dtype), "scale": torch.ones(4, device=device, dtype=dtype)},
+        "beta": {
+            "concentration1": torch.ones(4, device=device, dtype=dtype) * 2.0,
+            "concentration0": torch.ones(4, device=device, dtype=dtype) * 3.0,
+        },
+        "gamma": {
+            "concentration": torch.ones(4, device=device, dtype=dtype) * 2.0,
+            "rate": torch.ones(4, device=device, dtype=dtype),
+        },
+        "poisson": {"rate": torch.ones(4, device=device, dtype=dtype) * 3.0},
+        "categorical": {"logits": torch.zeros(4, 5, device=device, dtype=dtype)},
+        "student_t": {
+            "df": torch.ones(4, device=device, dtype=dtype) * 5.0,
+            "loc": torch.zeros(4, device=device, dtype=dtype),
+            "scale": torch.ones(4, device=device, dtype=dtype),
+        },
+    }
+    checked = 0
+    for name, params in families.items():
+        sampler = DistributionSampler(name, **params)
+        samples = sampler.sample(32)
+        log_prob = sampler.log_prob(samples)
+        if samples.shape[0] != 32:
+            raise AssertionError(f"{name} stress sample has wrong leading dimension")
+        if not torch.isfinite(log_prob.float()).all():
+            raise AssertionError(f"{name} stress log_prob has non-finite values")
+        checked += 1
+    adapter = DistributionAdapter(torch.distributions.Laplace(torch.zeros(3, device=device), torch.ones(3, device=device)))
+    adapted = adapter.sample(16)
+    if adapted.shape != (16, 3):
+        raise AssertionError("custom distribution adapter returned wrong shape")
+    metrics["distribution_families_checked"] = checked
+    metrics["distribution_adapter_checked"] = True
 
 
 def _stress_invalid_chunk_sizes(metrics: dict[str, object]) -> None:
