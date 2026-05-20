@@ -5,12 +5,22 @@ computing. It provides software models of p-bits/PDITs, PMODE Gaussian
 samplers, PMOG mixture samplers, and fixed-observation-time thermodynamic
 neuron layers.
 
-**The punchline:** `thermocompute` lets us study neural layers where width is
-area, not latency. Under the massively parallel thermodynamic hardware model,
-we can run variable-width fixed-depth neural inference in constant modeled
-physical time. Increasing width adds parallel thermodynamic units; it does not
-lengthen the fixed physical evolution window. The PyTorch emulator still pays
-normal software runtime, but the modeled computation is the important target.
+**The punchline:** `thermocompute` lets us study neural layers where width can
+behave more like parallel fabric than sequential latency. Today, that matters
+in two ways:
+
+1. **GPU-only path:** use thermodynamic layers directly as PyTorch modules. In
+   current CUDA experiments, wall-clock inference often enters a useful plateau
+   across moderate width ranges because the stochastic width dimension is
+   vectorized and the GPU still has parallel headroom.
+2. **Sim-to-real path:** the same code models future thermodynamic hardware,
+   where increasing width adds parallel physical units and does not lengthen
+   the fixed observation window.
+
+Under the massively parallel thermodynamic hardware model, we can run
+variable-width fixed-depth neural inference in constant modeled physical time.
+Increasing width adds parallel thermodynamic units; it does not lengthen the
+fixed physical evolution window.
 
 That is the central research result: a wider thermodynamic layer can expose
 more stochastic nonlinear features while reporting the same physical inference
@@ -25,25 +35,94 @@ dense digital FFN work proxy climbs with width. This is the cleanest current
 package result: variable-width neural inference in constant modeled physical
 time under the parallel thermodynamic substrate model.
 
-The package is meant for algorithm research before dedicated thermodynamic
-hardware is available. It lets you prototype the computation as a physical
-stochastic process, measure the emulated physical time of that process, and
-compare it against conventional sequential sampling or digital neural
-computation.
+The practical near-term bet is GPU-only thermodynamic inference. The emulator
+is not only a future-hardware simulator; it is also a usable stochastic neural
+layer family for CUDA today. If your GPU has enough unused parallel capacity,
+widening the thermodynamic hidden array can be much cheaper in wall-clock time
+than widening a classical dense digital FFN. That plateau is empirical, not a
+guarantee, and the benchmark artifacts report wall-clock timing separately so
+you can find the saturation point on your own hardware.
 
-This is not a claim that PyTorch itself magically has constant wall-clock time.
-The emulator runs on CPU or GPU and pays normal software costs. The point is to
-model the process that an analog thermodynamic substrate would execute in
-parallel.
+The second bet is sim-to-real. The same APIs let you prototype algorithms as
+physical stochastic processes before dedicated thermodynamic hardware is
+available, then compare modeled physical time against conventional sequential
+sampling or digital neural computation.
+
+This is not a claim that PyTorch magically has constant wall-clock time for all
+sizes. The emulator runs on CPU or GPU and pays normal software costs. The
+important empirical claim is narrower and more useful: on CUDA, there can be a
+substantial width range where thermodynamic emulator wall time is roughly flat
+because the GPU is executing the stochastic width in parallel. Eventually
+memory bandwidth, occupancy, registers, launch overhead, or tensor size should
+win and wall time should rise.
 
 The most important distinction in the package is:
 
 ```text
 PyTorch wall time     = how long this emulator takes on today's CPU/GPU
+CUDA plateau          = observed wall-clock regime before GPU saturation
 modeled physical time = how long the corresponding thermodynamic substrate runs
 ```
 
-The first one is an implementation cost. The second one is the research object.
+The first one is a practical software result. The second one is the GPU-only
+opportunity. The third one is the hardware-theory anchor.
+
+## Use Cases
+
+### 1. GPU-Only Thermodynamic Layers Today
+
+This is the path to prioritize now. `thermocompute` gives you PyTorch modules
+that can be dropped into real experiments:
+
+- `ThermodynamicFFN`: `[batch, seq, embed] -> [batch, seq, embed]`
+- `ThermodynamicTransformerBlock`: pre-norm attention plus a thermodynamic FFN
+- `ThermodynamicTransformerLayer`: research layer with sampled PDIT attention
+  and thermodynamic feed-forward width
+- `ThermodynamicMLP`: fixed-time stochastic MLPs for non-sequence experiments
+
+The goal is not to beat every optimized dense kernel on every shape. The goal
+is to exploit GPU parallelism to emulate very wide stochastic thermodynamic
+feature arrays where increasing width may be much cheaper than increasing
+classical dense FFN width. That makes the package useful for:
+
+- wide stochastic feature maps
+- reservoir/readout experiments
+- uncertainty-aware transformer blocks
+- synthetic sequence modeling
+- energy-based or diffusion-like latent transformations
+- fast ablations before thermodynamic hardware exists
+
+Use the benchmark scripts to measure your own plateau:
+
+```powershell
+python scripts/run_benchmarks.py --outdir artifacts
+python scripts/run_superiority_demo.py --outdir artifacts
+```
+
+Read the `wall_ms_median` fields as GPU software measurements and
+`physical_time` fields as modeled substrate measurements.
+
+### 2. Sim-To-Real Thermodynamic Hardware
+
+The same layer definitions are also a clean hardware target. A thermodynamic
+substrate would replace the numerical Langevin loop with physical evolution and
+readout. The API already exposes the hardware-relevant knobs:
+
+- `t_f`: fixed observation window
+- `dt`: emulator integration step
+- `temperature`: noise strength
+- `j2`, `j3`, `j4`: quartic potential shape
+- `n_replicas`, `tempering`, `swap_interval`: replica and tempering schedule
+
+That makes `thermocompute` a bridge: run GPU-only experiments now, then map
+successful thermodynamic blocks to future physical arrays.
+
+### 3. Research Proofs And Claim Boundaries
+
+The package ships benchmark artifacts and JSON schemas so results are
+inspectable. The core proof is modeled physical-time scaling. The promising
+engineering observation is the CUDA wall-clock plateau. They are related, but
+they are not the same claim.
 
 ## Motivation
 
@@ -63,10 +142,13 @@ are read out.
 `thermocompute` is built around that idea:
 
 - Use PyTorch tensors to emulate many thermodynamic units in parallel.
+- Treat CUDA as a practical first deployment target, not just a simulator.
 - Make physical time explicit through `tau0`, `dt`, and `t_f`.
 - Support discrete, continuous, and multimodal probabilistic primitives.
 - Build thermodynamic neural layers whose nonlinear activation is produced by
   fixed-time stochastic dynamics instead of a hand-coded activation function.
+- Measure whether GPU wall time enters a useful plateau as thermodynamic width
+  grows.
 - Demonstrate the key scaling idea: variable-width neural inference can keep
   constant modeled physical time when the extra width is mapped to parallel
   thermodynamic units.
@@ -781,7 +863,9 @@ In short:
   modeled physical time as width increases.
 - Proves: the benchmark suite separates modeled physical time from PyTorch wall
   time and classical FLOP proxies.
-- Does not prove: PyTorch wall time is constant with width.
+- Suggests: on CUDA, emulator wall time can remain roughly flat across useful
+  thermodynamic width ranges before hardware saturation.
+- Does not prove: PyTorch wall time is universally constant with width.
 - Does not prove: training is constant-time or faster than state-of-the-art
   classical training.
 - Does not prove: real chip speedups; this is an emulator with no hardware
@@ -806,7 +890,21 @@ print(has_cuda_extension())
 
 ## Scaling Advantage
 
-The important scaling distinction is between digital emulator runtime and
+There are now two scaling stories in the package.
+
+The first is practical and immediate: **GPU-only thermodynamic inference can
+show a wall-clock plateau.** The PyTorch implementation vectorizes the
+thermodynamic width dimension. On a CUDA device with unused parallel capacity,
+increasing `thermo_hidden_dim` may not produce a proportional wall-clock
+increase. This makes the software useful on its own, even before a physical
+thermodynamic chip exists.
+
+The second is theoretical and hardware-facing: **modeled physical inference
+time is constant with width** under the parallel thermodynamic substrate model.
+That claim is stronger and cleaner, but it depends on the future hardware
+assumption that width maps to parallel physical units.
+
+The important scaling distinction is therefore between GPU emulator runtime and
 modeled physical runtime.
 
 In a conventional digital sampler, sampling cost usually grows with at least one
@@ -824,16 +922,24 @@ available on the substrate, they all evolve during the same physical window.
 The modeled forward-pass time is controlled by the relaxation window, not by the
 number of units participating in that window.
 
-This package exposes that separation directly. In the width-scaling experiment,
-the thermodynamic MLP's modeled physical time stays fixed as width increases.
-PyTorch wall time is still a normal GPU measurement, but the physical-time
-metric shows what the same computation would ask from a massively parallel
-thermodynamic substrate.
+This package exposes that separation directly. In the width-scaling
+experiments, the thermodynamic MLP and transformer FFN modeled physical time
+stay fixed as width increases. PyTorch wall time is still a normal GPU
+measurement, and it is valuable in its own right: if it stays roughly flat over
+your target width range, then the GPU-only path is already useful as a wide
+stochastic layer family. The physical-time metric shows what the same
+computation would ask from a massively parallel thermodynamic substrate.
 
 The same principle now applies to the thermodynamic transformer layer. The
 `thermo_hidden_dim` can be varied from small to very wide while the modeled
 feed-forward physical time remains `t_f`. That is the central result: variable
 width neural inference in constant modeled physical time.
+
+For the GPU-only path, the key engineering question is not "is wall time
+mathematically constant?" It is "where is the plateau on this GPU for this
+batch, sequence length, dtype, and width range?" The shipped benchmarks answer
+that question empirically by reporting `wall_ms_median` beside
+`physical_time`.
 
 The readout-alignment experiment adds a first training counterpart: a wider
 thermodynamic transformer reservoir improves one-shot fitted error while the
@@ -842,9 +948,15 @@ does not require backpropagating through many stochastic inference passes.
 
 ## What This Could Mean For Huge Models
 
-For huge models, the most interesting target is not replacing every digital
-operation. The strongest near-term opportunity is replacing the stochastic and
-probabilistic core: sampling, uncertainty propagation, energy-based inference,
+For huge models, the first serious use case is GPU-only experimentation. Treat
+the thermodynamic layer as a practical stochastic PyTorch module that can
+approximate very wide nonlinear feature arrays while measuring whether the CUDA
+wall-clock cost remains flat enough to matter. This can be useful before any
+thermodynamic chip exists.
+
+The most interesting target is not replacing every digital operation. The
+strongest near-term opportunity is replacing the stochastic and probabilistic
+core: sampling, uncertainty propagation, energy-based inference,
 diffusion-like refinement, latent-variable search, and ensemble-style
 exploration.
 
@@ -858,6 +970,8 @@ width as more parallel physical dynamics.
 If those computations can be mapped to dense thermodynamic arrays, the scaling
 profile changes:
 
+- On GPUs today, moderate width increases may fit inside an existing parallel
+  execution plateau rather than producing proportional latency.
 - Wider latent spaces increase hardware area, not necessarily physical latency.
 - Wider transformer feed-forward blocks increase thermodynamic fabric, not
   necessarily the fixed-time inference window.
@@ -879,9 +993,11 @@ thermodynamic fabric can we afford?"
 For huge transformers, the thermodynamic transformer layer points at a concrete
 hybrid path: keep token routing, memory, and parts of attention digital where
 that is practical, but move the wide nonlinear feed-forward and stochastic
-sampling work into fixed-time physical dynamics. That is how this package
-frames the frontier opportunity: inference of variable-width neural blocks in
-constant modeled physical time.
+sampling work into thermodynamic layers. On GPUs, that means exploiting the
+wall-clock plateau where it exists. On hardware, that means fixed-time physical
+dynamics. That is how this package frames the frontier opportunity: inference
+of variable-width neural blocks with unusually weak latency scaling today, and
+constant modeled physical time on the target substrate.
 
 Thermodynamic Readout Alignment is the first practical training answer in this
 direction. Instead of training every stochastic element by backpropagation, the
@@ -929,14 +1045,18 @@ python scripts/run_benchmarks.py --outdir artifacts
 Keep claims grounded when interpreting results:
 
 - `physical_time` is an emulator metric, not a measured chip benchmark.
-- PyTorch wall time is useful for software optimization, not for proving
-  thermodynamic hardware speed.
+- PyTorch/CUDA wall time is a practical software result. A flat wall-clock
+  plateau is useful for GPU-only deployment, but it is not the same as a
+  hardware-theory guarantee.
+- The GPU wall-clock plateau is shape- and device-dependent. Expect saturation
+  once width, batch, sequence length, dtype, memory bandwidth, or kernel
+  occupancy becomes limiting.
 - Constant physical time applies to parallel units inside a fixed sequential
   layer schedule. Deeper unpipelined networks still add sequential fixed-time
   windows.
 - The variable-width constant-time claim applies to modeled physical time under
   a parallel thermodynamic substrate. It does not mean CPU/GPU software runtime
-  is independent of tensor width.
+  is independent of tensor width for all shapes.
 - Thermodynamic Readout Alignment is a fast readout-training method, not a
   complete replacement for all gradient-based training.
 - Parallel Tempered End-To-End Training is the no-ridge inductive baseline. It
