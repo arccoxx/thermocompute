@@ -20,6 +20,7 @@
 ## Memory-Efficient Inference
 
 - Parameter memory remains linear in thermodynamic width because current weights and readout weights must still be stored.
+- The package includes first-order FFN memory estimators for classical and thermodynamic layers; they are planning tools, not allocator-accurate profilers.
 - The PyTorch emulator now supports chunked projected inference for `ThermodynamicFFN`, `ThermodynamicTransformerLayer`, and `ThermodynamicTransformerBlock`.
 - Chunking reduces peak thermodynamic state/activation memory from width-proportional `O(batch * seq * width * replicas)` to `O(batch * seq * chunk_size * replicas)`.
 - In the best no-replica case, chunked state memory is `O(batch * seq * chunk_size)` while parameter memory remains `O(width * (input_dim + output_dim))`, comparable to a dense classical FFN plus small thermodynamic coefficients.

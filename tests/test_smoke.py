@@ -19,6 +19,8 @@ from thermocompute import (
     fit_transformer_end_to_end_parallel_tempering,
     fit_transformer_readout_parallel_tempering,
     fit_transformer_readout_ridge,
+    estimate_classical_ffn_memory,
+    estimate_thermo_ffn_memory,
     replace_ffn,
     run_superiority_demo,
 )
@@ -173,6 +175,23 @@ def test_no_replica_memory_efficient_cold_training() -> None:
     )
     assert result.memory_replicas == 1
     assert result.final_train_loss < result.initial_train_loss
+
+
+def test_memory_estimators_show_chunked_state_reduction() -> None:
+    classical = estimate_classical_ffn_memory(32, 1024, batch_tokens=128, dtype_bytes=2)
+    thermo_full = estimate_thermo_ffn_memory(32, 1024, batch_tokens=128, dtype_bytes=2, replicas=1)
+    thermo_chunked = estimate_thermo_ffn_memory(
+        32,
+        1024,
+        batch_tokens=128,
+        dtype_bytes=2,
+        replicas=1,
+        chunk_size=128,
+    )
+    assert classical.parameter_bytes < thermo_full.parameter_bytes
+    assert thermo_chunked.parameter_bytes == thermo_full.parameter_bytes
+    assert thermo_chunked.state_bytes < thermo_full.state_bytes
+    assert thermo_chunked.peak_bytes < thermo_full.peak_bytes
 
 
 def test_integration_block_reports_tempering_swaps() -> None:
@@ -345,6 +364,8 @@ def test_public_imports() -> None:
         "ThermodynamicTransformerBlock",
         "fit_transformer_end_to_end_cold",
         "fit_transformer_end_to_end_parallel_tempering",
+        "estimate_classical_ffn_memory",
+        "estimate_thermo_ffn_memory",
         "run_superiority_demo",
         "__version__",
     ]

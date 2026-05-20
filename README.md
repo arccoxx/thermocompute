@@ -318,12 +318,14 @@ thermocompute/
   training.py       cold/PT end-to-end and readout training helpers
   experiments.py    smoke checks, proof-of-concept checks, scaling studies
   benchmarks.py     research-proof width and baseline benchmarks
+  memory.py         FFN memory scaling estimators
   metrics.py        result serialization and small metric helpers
   config.py         device and random seed utilities
   cuda_ext.py       optional CUDA extension loader
   cuda/             experimental custom CUDA kernel source
 scripts/
   run_benchmarks.py
+  run_stress.py
   run_tests.py
   run_smoke.py
   run_poc.py
@@ -431,6 +433,31 @@ y, info = layer(tokens, chunk_size=4096, return_info=True)
 
 The same option is available on `ThermodynamicFFN` and
 `ThermodynamicTransformerConfig`.
+
+For quick planning, the package includes first-order memory estimators:
+
+```python
+from thermocompute import estimate_classical_ffn_memory, estimate_thermo_ffn_memory
+
+classical = estimate_classical_ffn_memory(
+    input_dim=4096,
+    hidden_dim=500_000,
+    batch_tokens=2048,
+    dtype_bytes=2,
+)
+
+thermo = estimate_thermo_ffn_memory(
+    input_dim=4096,
+    hidden_dim=500_000,
+    batch_tokens=2048,
+    dtype_bytes=2,
+    replicas=1,
+    chunk_size=8192,
+)
+
+print(classical.peak_bytes / 1e9)
+print(thermo.peak_bytes / 1e9)
+```
 
 ### Best-Case Memory Scaling: No Replicas
 
@@ -1205,6 +1232,7 @@ Run all local checks:
 
 ```powershell
 python scripts/run_tests.py
+python scripts/run_stress.py
 python scripts/run_smoke.py
 python scripts/run_poc.py
 python scripts/run_experiments.py --outdir artifacts

@@ -11,6 +11,11 @@ from .config import (
 )
 from .integration import ThermodynamicFFN, ThermodynamicTransformerBlock, replace_ffn
 from .metrics import ExperimentResult, moment_summary, physical_advantage_ratio
+from .memory import (
+    FFNMemoryEstimate,
+    estimate_classical_ffn_memory,
+    estimate_thermo_ffn_memory,
+)
 from .neurons import (
     ThermodynamicMLP,
     ThermodynamicNeuronLayer,
@@ -46,6 +51,7 @@ __all__ = [
     "CategoricalPDIT",
     "DeviceConfig",
     "ExperimentResult",
+    "FFNMemoryEstimate",
     "IsingEnergy",
     "PhysicalTimeReport",
     "PMODE",
@@ -68,6 +74,8 @@ __all__ = [
     "fit_transformer_end_to_end_parallel_tempering",
     "fit_transformer_readout_parallel_tempering",
     "fit_transformer_readout_ridge",
+    "estimate_classical_ffn_memory",
+    "estimate_thermo_ffn_memory",
     "moment_summary",
     "physical_advantage_ratio",
     "quartic_potential",
