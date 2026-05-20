@@ -1,0 +1,83 @@
+{
+  "metrics": {
+    "device": "cuda",
+    "physical_time_max": 0.2,
+    "physical_time_min": 0.2,
+    "physical_time_range": 0.0,
+    "rows": [
+      {
+        "batch": 48,
+        "embed_dim": 32,
+        "feedforward_physical_time": 0.2,
+        "output_std": 1.0509103536605835,
+        "physical_time": 0.2,
+        "seq_len": 24,
+        "thermo_hidden_dim": 32,
+        "wall_ms_max": 1.8787000179290771,
+        "wall_ms_median": 1.5281000137329102,
+        "wall_ms_min": 1.4090999364852905
+      },
+      {
+        "batch": 48,
+        "embed_dim": 32,
+        "feedforward_physical_time": 0.2,
+        "output_std": 1.0437219142913818,
+        "physical_time": 0.2,
+        "seq_len": 24,
+        "thermo_hidden_dim": 64,
+        "wall_ms_max": 1.6195000410079956,
+        "wall_ms_median": 1.4722999334335327,
+        "wall_ms_min": 1.4336000680923462
+      },
+      {
+        "batch": 48,
+        "embed_dim": 32,
+        "feedforward_physical_time": 0.2,
+        "output_std": 1.0490862131118774,
+        "physical_time": 0.2,
+        "seq_len": 24,
+        "thermo_hidden_dim": 128,
+        "wall_ms_max": 2.4195001125335693,
+        "wall_ms_median": 1.5465999841690063,
+        "wall_ms_min": 1.375599980354309
+      },
+      {
+        "batch": 48,
+        "embed_dim": 32,
+        "feedforward_physical_time": 0.2,
+        "output_std": 1.0481265783309937,
+        "physical_time": 0.2,
+        "seq_len": 24,
+        "thermo_hidden_dim": 256,
+        "wall_ms_max": 2.6474997997283936,
+        "wall_ms_median": 2.1087000370025635,
+        "wall_ms_min": 1.8902000188827515
+      },
+      {
+        "batch": 48,
+        "embed_dim": 32,
+        "feedforward_physical_time": 0.2,
+        "output_std": 1.0563673973083496,
+        "physical_time": 0.2,
+        "seq_len": 24,
+        "thermo_hidden_dim": 512,
+        "wall_ms_max": 1.572700023651123,
+        "wall_ms_median": 1.3479000329971313,
+        "wall_ms_min": 1.2894999980926514
+      },
+      {
+        "batch": 48,
+        "embed_dim": 32,
+        "feedforward_physical_time": 0.2,
+        "output_std": 1.04110586643219,
+        "physical_time": 0.2,
+        "seq_len": 24,
+        "thermo_hidden_dim": 1024,
+        "wall_ms_max": 10.945899963378906,
+        "wall_ms_median": 1.4138000011444092,
+        "wall_ms_min": 1.3468999862670898
+      }
+    ]
+  },
+  "name": "transformer_width_constant_physical_time"
+}

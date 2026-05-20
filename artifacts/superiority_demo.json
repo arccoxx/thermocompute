@@ -1,0 +1,183 @@
+{
+  "metrics": {
+    "claim": "Modeled thermodynamic physical inference time stays fixed as width grows; dense digital FFN work grows with width.",
+    "device": "cuda",
+    "max_measured_modeled_latency_advantage_factor": 57.0,
+    "max_projected_modeled_latency_advantage_factor": 910.3333333333334,
+    "measured_rows": [
+      {
+        "attention_flop_proxy": 786432,
+        "classical_eval_mse": 0.21248158812522888,
+        "classical_ffn_flop_proxy": 6291456,
+        "classical_param_count": 4256,
+        "classical_total_flop_proxy": 7077888,
+        "classical_wall_ms_median": 3.9751999378204346,
+        "digital_work_growth_vs_min_width": 1.0,
+        "modeled_latency_advantage_factor": 1.0,
+        "thermo_eval_mse": 0.3373495042324066,
+        "thermo_param_count": 8736,
+        "thermo_physical_growth_vs_min_width": 1.0,
+        "thermo_physical_time": 0.2,
+        "thermo_wall_ms_median": 39.07279968261719,
+        "width": 64
+      },
+      {
+        "attention_flop_proxy": 786432,
+        "classical_eval_mse": 0.2038763463497162,
+        "classical_ffn_flop_proxy": 12582912,
+        "classical_param_count": 8416,
+        "classical_total_flop_proxy": 13369344,
+        "classical_wall_ms_median": 0.08400005847215652,
+        "digital_work_growth_vs_min_width": 1.8888888888888888,
+        "modeled_latency_advantage_factor": 1.8888888888888888,
+        "thermo_eval_mse": 0.3243861794471741,
+        "thermo_param_count": 13088,
+        "thermo_physical_growth_vs_min_width": 1.0,
+        "thermo_physical_time": 0.2,
+        "thermo_wall_ms_median": 1.7108999490737915,
+        "width": 128
+      },
+      {
+        "attention_flop_proxy": 786432,
+        "classical_eval_mse": 0.21757487952709198,
+        "classical_ffn_flop_proxy": 25165824,
+        "classical_param_count": 16736,
+        "classical_total_flop_proxy": 25952256,
+        "classical_wall_ms_median": 0.07529999315738678,
+        "digital_work_growth_vs_min_width": 3.6666666666666665,
+        "modeled_latency_advantage_factor": 3.6666666666666665,
+        "thermo_eval_mse": 0.31627392768859863,
+        "thermo_param_count": 21792,
+        "thermo_physical_growth_vs_min_width": 1.0,
+        "thermo_physical_time": 0.2,
+        "thermo_wall_ms_median": 1.6595999002456665,
+        "width": 256
+      },
+      {
+        "attention_flop_proxy": 786432,
+        "classical_eval_mse": 0.26523321866989136,
+        "classical_ffn_flop_proxy": 50331648,
+        "classical_param_count": 33376,
+        "classical_total_flop_proxy": 51118080,
+        "classical_wall_ms_median": 0.07920002192258835,
+        "digital_work_growth_vs_min_width": 7.222222222222222,
+        "modeled_latency_advantage_factor": 7.222222222222222,
+        "thermo_eval_mse": 0.3573324680328369,
+        "thermo_param_count": 39200,
+        "thermo_physical_growth_vs_min_width": 1.0,
+        "thermo_physical_time": 0.2,
+        "thermo_wall_ms_median": 1.549899935722351,
+        "width": 512
+      },
+      {
+        "attention_flop_proxy": 786432,
+        "classical_eval_mse": 0.4890870749950409,
+        "classical_ffn_flop_proxy": 100663296,
+        "classical_param_count": 66656,
+        "classical_total_flop_proxy": 101449728,
+        "classical_wall_ms_median": 0.08549994975328445,
+        "digital_work_growth_vs_min_width": 14.333333333333334,
+        "modeled_latency_advantage_factor": 14.333333333333334,
+        "thermo_eval_mse": 0.6450514793395996,
+        "thermo_param_count": 74016,
+        "thermo_physical_growth_vs_min_width": 1.0,
+        "thermo_physical_time": 0.2,
+        "thermo_wall_ms_median": 1.7444000244140625,
+        "width": 1024
+      },
+      {
+        "attention_flop_proxy": 786432,
+        "classical_eval_mse": 0.7058428525924683,
+        "classical_ffn_flop_proxy": 201326592,
+        "classical_param_count": 133216,
+        "classical_total_flop_proxy": 202113024,
+        "classical_wall_ms_median": 0.18690001964569092,
+        "digital_work_growth_vs_min_width": 28.555555555555557,
+        "modeled_latency_advantage_factor": 28.555555555555557,
+        "thermo_eval_mse": 0.7969343066215515,
+        "thermo_param_count": 143648,
+        "thermo_physical_growth_vs_min_width": 1.0,
+        "thermo_physical_time": 0.2,
+        "thermo_wall_ms_median": 1.555299997329712,
+        "width": 2048
+      },
+      {
+        "attention_flop_proxy": 786432,
+        "classical_eval_mse": 0.40031689405441284,
+        "classical_ffn_flop_proxy": 402653184,
+        "classical_param_count": 266336,
+        "classical_total_flop_proxy": 403439616,
+        "classical_wall_ms_median": 1.094099998474121,
+        "digital_work_growth_vs_min_width": 57.0,
+        "modeled_latency_advantage_factor": 57.0,
+        "thermo_eval_mse": 0.3098747134208679,
+        "thermo_param_count": 282912,
+        "thermo_physical_growth_vs_min_width": 1.0,
+        "thermo_physical_time": 0.2,
+        "thermo_wall_ms_median": 3.8210999965667725,
+        "width": 4096
+      }
+    ],
+    "not_claimed": [
+      "PyTorch wall time is faster than all state-of-the-art kernels.",
+      "Training is constant time.",
+      "Real chip speedup is proven without hardware."
+    ],
+    "physical_time_range_measured": 0.0,
+    "projected_rows": [
+      {
+        "attention_flop_proxy": 786432,
+        "classical_ffn_flop_proxy": 805306368,
+        "classical_total_flop_proxy": 806092800,
+        "digital_work_growth_vs_min_width": 113.88888888888889,
+        "modeled_latency_advantage_factor": 113.88888888888889,
+        "thermo_physical_growth_vs_min_width": 1.0,
+        "thermo_physical_time": 0.2,
+        "width": 8192
+      },
+      {
+        "attention_flop_proxy": 786432,
+        "classical_ffn_flop_proxy": 1610612736,
+        "classical_total_flop_proxy": 1611399168,
+        "digital_work_growth_vs_min_width": 227.66666666666666,
+        "modeled_latency_advantage_factor": 227.66666666666666,
+        "thermo_physical_growth_vs_min_width": 1.0,
+        "thermo_physical_time": 0.2,
+        "width": 16384
+      },
+      {
+        "attention_flop_proxy": 786432,
+        "classical_ffn_flop_proxy": 3221225472,
+        "classical_total_flop_proxy": 3222011904,
+        "digital_work_growth_vs_min_width": 455.22222222222223,
+        "modeled_latency_advantage_factor": 455.22222222222223,
+        "thermo_physical_growth_vs_min_width": 1.0,
+        "thermo_physical_time": 0.2,
+        "width": 32768
+      },
+      {
+        "attention_flop_proxy": 786432,
+        "classical_ffn_flop_proxy": 6442450944,
+        "classical_total_flop_proxy": 6443237376,
+        "digital_work_growth_vs_min_width": 910.3333333333334,
+        "modeled_latency_advantage_factor": 910.3333333333334,
+        "thermo_physical_growth_vs_min_width": 1.0,
+        "thermo_physical_time": 0.2,
+        "width": 65536
+      }
+    ],
+    "references": {
+      "ddpm_iterative_sampling": "https://arxiv.org/abs/2006.11239",
+      "flash_attention": "https://arxiv.org/abs/2205.14135",
+      "flash_attention_3": "https://arxiv.org/abs/2407.08608",
+      "parallel_tempering_review": "https://pubs.rsc.org/en/content/articlepdf/2005/cp/b509983h"
+    },
+    "state_of_art_context": {
+      "attention": "FlashAttention-style kernels reduce memory traffic and improve wall time for exact attention, but they do not remove the width-dependent dense FFN work inside transformer blocks.",
+      "demo_scope": "This is an inference-scaling demonstration, not a training-speed benchmark and not a hardware measurement.",
+      "dense_ffn_lower_bound": "A dense digital FFN must touch width-dependent weights and activations unless it changes the model class with sparsity, low-rank structure, quantization, or approximation.",
+      "thermodynamic_model": "The thermodynamic layer maps extra width to extra parallel physical units and reads them after the same fixed t_f window."
+    }
+  },
+  "name": "superiority_demo"
+}

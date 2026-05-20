@@ -1,0 +1,15 @@
+{
+  "metrics": {
+    "device": "cuda",
+    "energy_improvement": 0.0003700852394104004,
+    "no_tempering_mean_energy": -0.9580652713775635,
+    "no_tempering_right_well_fraction": 0.0,
+    "no_tempering_well_coverage": 0.0,
+    "tempering_mean_energy": -0.9584353566169739,
+    "tempering_right_well_fraction": 0.3592529296875,
+    "tempering_swap_acceptance": 0.8609340122767857,
+    "tempering_well_coverage": 0.718505859375,
+    "well_coverage_improvement": 0.718505859375
+  },
+  "name": "parallel_tempering_double_well_escape"
+}

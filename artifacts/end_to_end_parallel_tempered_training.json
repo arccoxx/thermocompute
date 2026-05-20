@@ -1,0 +1,27 @@
+{
+  "metrics": {
+    "cold_single_replica": {
+      "final_eval_loss": 0.24465110898017883,
+      "final_train_loss": 0.2603018879890442,
+      "fit_wall_ms": 1939.4456999143586,
+      "initial_train_loss": 0.5850470066070557,
+      "memory_replicas": 1,
+      "physical_time_per_forward": 0.1
+    },
+    "device": "cuda",
+    "method": "End-to-end inductive transformer training with parallel-tempered parameter replicas; no ridge solve",
+    "parallel_tempered": {
+      "best_replica_temperature": 0.800000011920929,
+      "final_eval_loss": 0.2436339110136032,
+      "final_train_loss": 0.26039955019950867,
+      "fit_wall_ms": 2390.6179999466985,
+      "initial_train_loss": 0.5852711200714111,
+      "n_tempering_replicas": 5,
+      "physical_time_per_forward": 0.1,
+      "swap_acceptance": 1.0,
+      "swap_attempts": 56
+    },
+    "pt_eval_delta_vs_cold": -0.0010171979665756226
+  },
+  "name": "end_to_end_parallel_tempered_training"
+}

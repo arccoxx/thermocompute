@@ -1,0 +1,56 @@
+{
+  "metrics": {
+    "best_sparse_eval_mse_single_shot": 0.16102451086044312,
+    "best_sparse_train_mse": 0.12769335508346558,
+    "device": "cuda",
+    "method": "Parallel Tempered Mask Alignment (PT over sparse thermodynamic reservoir feature masks)",
+    "rows": [
+      {
+        "dense_eval_mse_single_shot": 0.16599112749099731,
+        "dense_fit_wall_ms": 3.343900083564222,
+        "dense_train_mse": 0.13461506366729736,
+        "fit_physical_time": 0.4,
+        "inference_physical_time": 0.2,
+        "selected_features": 36,
+        "selected_fraction": 0.5625,
+        "sparse_eval_mse_single_shot": 0.1666288673877716,
+        "sparse_fit_wall_ms": 1341.3108999375254,
+        "sparse_train_mse": 0.14562907814979553,
+        "swap_acceptance": 0.9555555555555556,
+        "swap_attempts": 90,
+        "thermo_hidden_dim": 64
+      },
+      {
+        "dense_eval_mse_single_shot": 0.1760331690311432,
+        "dense_fit_wall_ms": 4.369599977508187,
+        "dense_train_mse": 0.12343897670507431,
+        "fit_physical_time": 0.4,
+        "inference_physical_time": 0.2,
+        "selected_features": 57,
+        "selected_fraction": 0.4453125,
+        "sparse_eval_mse_single_shot": 0.16102451086044312,
+        "sparse_fit_wall_ms": 162.1339999837801,
+        "sparse_train_mse": 0.13613007962703705,
+        "swap_acceptance": 0.9888888888888889,
+        "swap_attempts": 90,
+        "thermo_hidden_dim": 128
+      },
+      {
+        "dense_eval_mse_single_shot": 0.2260594516992569,
+        "dense_fit_wall_ms": 4.86870005261153,
+        "dense_train_mse": 0.10575734078884125,
+        "fit_physical_time": 0.4,
+        "inference_physical_time": 0.2,
+        "selected_features": 111,
+        "selected_fraction": 0.43359375,
+        "sparse_eval_mse_single_shot": 0.17408403754234314,
+        "sparse_fit_wall_ms": 153.59150001313537,
+        "sparse_train_mse": 0.12769335508346558,
+        "swap_acceptance": 0.9888888888888889,
+        "swap_attempts": 90,
+        "thermo_hidden_dim": 256
+      }
+    ]
+  },
+  "name": "parallel_tempered_mask_alignment"
+}

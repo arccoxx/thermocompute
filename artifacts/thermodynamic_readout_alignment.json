@@ -1,0 +1,61 @@
+{
+  "metrics": {
+    "best_eval_mse_single_shot": 0.1883215308189392,
+    "best_train_mse": 0.14214351773262024,
+    "device": "cuda",
+    "method": "Thermodynamic Readout Alignment (closed-form ridge on fixed-time thermodynamic features)",
+    "rows": [
+      {
+        "eval_mse_single_shot": 0.19994975626468658,
+        "feature_repeats": 2,
+        "fit_physical_time": 0.4,
+        "fit_wall_ms": 15.357800060883164,
+        "inference_physical_time": 0.2,
+        "post_fit_train_mse": 0.18241369724273682,
+        "pre_fit_train_mse": 0.38980424404144287,
+        "thermo_hidden_dim": 32
+      },
+      {
+        "eval_mse_single_shot": 0.1883215308189392,
+        "feature_repeats": 2,
+        "fit_physical_time": 0.4,
+        "fit_wall_ms": 10.139900026842952,
+        "inference_physical_time": 0.2,
+        "post_fit_train_mse": 0.17186006903648376,
+        "pre_fit_train_mse": 0.3962475061416626,
+        "thermo_hidden_dim": 64
+      },
+      {
+        "eval_mse_single_shot": 0.19131967425346375,
+        "feature_repeats": 2,
+        "fit_physical_time": 0.4,
+        "fit_wall_ms": 4.95869992300868,
+        "inference_physical_time": 0.2,
+        "post_fit_train_mse": 0.16675111651420593,
+        "pre_fit_train_mse": 0.3986925482749939,
+        "thermo_hidden_dim": 128
+      },
+      {
+        "eval_mse_single_shot": 0.20324885845184326,
+        "feature_repeats": 2,
+        "fit_physical_time": 0.4,
+        "fit_wall_ms": 3.3158999867737293,
+        "inference_physical_time": 0.2,
+        "post_fit_train_mse": 0.15813308954238892,
+        "pre_fit_train_mse": 0.3862338066101074,
+        "thermo_hidden_dim": 256
+      },
+      {
+        "eval_mse_single_shot": 0.23655658960342407,
+        "feature_repeats": 2,
+        "fit_physical_time": 0.4,
+        "fit_wall_ms": 29.480100027285516,
+        "inference_physical_time": 0.2,
+        "post_fit_train_mse": 0.14214351773262024,
+        "pre_fit_train_mse": 0.3939351439476013,
+        "thermo_hidden_dim": 512
+      }
+    ]
+  },
+  "name": "thermodynamic_readout_alignment"
+}

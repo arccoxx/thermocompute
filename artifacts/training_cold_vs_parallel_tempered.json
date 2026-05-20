@@ -1,0 +1,33 @@
+{
+  "metrics": {
+    "cold": {
+      "final_eval_loss": 0.3374515175819397,
+      "final_train_loss": 0.3210330605506897,
+      "fit_wall_ms": 1615.9646000014618,
+      "initial_train_loss": 0.4892175793647766,
+      "learning_rate": 0.004,
+      "memory_replicas": 1,
+      "method": "cold_end_to_end_training",
+      "n_steps": 24,
+      "physical_time_per_forward": 0.1
+    },
+    "device": "cuda",
+    "parallel_tempered": {
+      "best_replica_temperature": 0.04999999701976776,
+      "final_eval_loss": 0.3377741873264313,
+      "final_train_loss": 0.3207409381866455,
+      "fit_wall_ms": 588.9409000519663,
+      "initial_train_loss": 0.48755544424057007,
+      "learning_rate": 0.004,
+      "method": "parallel_tempered_end_to_end_training",
+      "n_tempering_replicas": 4,
+      "n_tempering_steps": 24,
+      "noise_scale": 0.002,
+      "physical_time_per_forward": 0.1,
+      "swap_acceptance": 0.9583333333333334,
+      "swap_attempts": 24
+    },
+    "training_not_constant_time": true
+  },
+  "name": "training_cold_vs_parallel_tempered"
+}

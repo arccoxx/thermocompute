@@ -1,0 +1,71 @@
+{
+  "metrics": {
+    "device": "cuda",
+    "physical_time_max": 1.2000000000000002,
+    "physical_time_min": 1.2000000000000002,
+    "physical_time_range": 0.0,
+    "rows": [
+      {
+        "batch": 512,
+        "output_std": 0.6427779793739319,
+        "physical_time": 1.2000000000000002,
+        "swap_acceptance": 0.9388563368055556,
+        "wall_ms_max": 480.7651062011719,
+        "wall_ms_median": 451.3670959472656,
+        "wall_ms_min": 362.726806640625,
+        "width": 8
+      },
+      {
+        "batch": 512,
+        "output_std": 0.6559781432151794,
+        "physical_time": 1.2000000000000002,
+        "swap_acceptance": 0.9397867838541667,
+        "wall_ms_max": 392.8706970214844,
+        "wall_ms_median": 376.7965087890625,
+        "wall_ms_min": 221.3448944091797,
+        "width": 16
+      },
+      {
+        "batch": 512,
+        "output_std": 0.6335393190383911,
+        "physical_time": 1.2000000000000002,
+        "swap_acceptance": 0.9396520543981481,
+        "wall_ms_max": 424.1839904785156,
+        "wall_ms_median": 389.1138000488281,
+        "wall_ms_min": 367.1778869628906,
+        "width": 32
+      },
+      {
+        "batch": 512,
+        "output_std": 0.6498938202857971,
+        "physical_time": 1.2000000000000002,
+        "swap_acceptance": 0.9393525965073529,
+        "wall_ms_max": 478.60479736328125,
+        "wall_ms_median": 442.85540771484375,
+        "wall_ms_min": 375.0787048339844,
+        "width": 64
+      },
+      {
+        "batch": 512,
+        "output_std": 0.6544986963272095,
+        "physical_time": 1.2000000000000002,
+        "swap_acceptance": 0.9385702730429293,
+        "wall_ms_max": 411.12530517578125,
+        "wall_ms_median": 339.5058898925781,
+        "wall_ms_min": 86.00789642333984,
+        "width": 128
+      },
+      {
+        "batch": 512,
+        "output_std": 0.6533408164978027,
+        "physical_time": 1.2000000000000002,
+        "swap_acceptance": 0.9391357421875,
+        "wall_ms_max": 38.744998931884766,
+        "wall_ms_median": 21.564800262451172,
+        "wall_ms_min": 18.68869972229004,
+        "width": 256
+      }
+    ]
+  },
+  "name": "width_scaling_fixed_physical_time"
+}

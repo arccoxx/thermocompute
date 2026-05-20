@@ -1,0 +1,46 @@
+{
+  "metrics": {
+    "best_mse": 0.0029582197312265635,
+    "device": "cuda",
+    "mse_improvement_1_to_32": 0.09247757843695581,
+    "rows": [
+      {
+        "attention_physical_time": 0.05,
+        "attention_samples": 1,
+        "mse_to_softmax_mean": 0.09543579816818237,
+        "mse_to_softmax_std": 0.001525727566331625
+      },
+      {
+        "attention_physical_time": 0.05,
+        "attention_samples": 2,
+        "mse_to_softmax_mean": 0.04705880209803581,
+        "mse_to_softmax_std": 0.0006519414018839598
+      },
+      {
+        "attention_physical_time": 0.05,
+        "attention_samples": 4,
+        "mse_to_softmax_mean": 0.0236987117677927,
+        "mse_to_softmax_std": 0.00033385108690708876
+      },
+      {
+        "attention_physical_time": 0.05,
+        "attention_samples": 8,
+        "mse_to_softmax_mean": 0.011839903891086578,
+        "mse_to_softmax_std": 0.0001401938934577629
+      },
+      {
+        "attention_physical_time": 0.05,
+        "attention_samples": 16,
+        "mse_to_softmax_mean": 0.005897922441363335,
+        "mse_to_softmax_std": 0.00011535330850165337
+      },
+      {
+        "attention_physical_time": 0.05,
+        "attention_samples": 32,
+        "mse_to_softmax_mean": 0.0029582197312265635,
+        "mse_to_softmax_std": 6.243831012398005e-05
+      }
+    ]
+  },
+  "name": "pdit_attention_sampling_convergence"
+}

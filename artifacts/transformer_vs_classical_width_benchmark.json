@@ -1,0 +1,114 @@
+{
+  "metrics": {
+    "classical_flop_proxy_increases": true,
+    "device": "cuda",
+    "physical_time_range": 0.0,
+    "rows": [
+      {
+        "classical_eval_mse": 0.20806476473808289,
+        "classical_flop_proxy": 3145728,
+        "classical_param_bytes": 8704,
+        "classical_param_count": 2176,
+        "classical_wall_ms_median": 0.16359996795654297,
+        "thermo_eval_mse": 0.3018460273742676,
+        "thermo_param_bytes": 26240,
+        "thermo_param_count": 6560,
+        "thermo_physical_time": 0.2,
+        "thermo_wall_ms_median": 3.198899984359741,
+        "width": 32
+      },
+      {
+        "classical_eval_mse": 0.1707916110754013,
+        "classical_flop_proxy": 6291456,
+        "classical_param_bytes": 17024,
+        "classical_param_count": 4256,
+        "classical_wall_ms_median": 0.11269992589950562,
+        "thermo_eval_mse": 0.28838104009628296,
+        "thermo_param_bytes": 34944,
+        "thermo_param_count": 8736,
+        "thermo_physical_time": 0.2,
+        "thermo_wall_ms_median": 1.4950001239776611,
+        "width": 64
+      },
+      {
+        "classical_eval_mse": 0.16250848770141602,
+        "classical_flop_proxy": 12582912,
+        "classical_param_bytes": 33664,
+        "classical_param_count": 8416,
+        "classical_wall_ms_median": 0.09360001236200333,
+        "thermo_eval_mse": 0.27367109060287476,
+        "thermo_param_bytes": 52352,
+        "thermo_param_count": 13088,
+        "thermo_physical_time": 0.2,
+        "thermo_wall_ms_median": 1.6411999464035034,
+        "width": 128
+      },
+      {
+        "classical_eval_mse": 0.1722847819328308,
+        "classical_flop_proxy": 25165824,
+        "classical_param_bytes": 66944,
+        "classical_param_count": 16736,
+        "classical_wall_ms_median": 0.0846000611782074,
+        "thermo_eval_mse": 0.2663026452064514,
+        "thermo_param_bytes": 87168,
+        "thermo_param_count": 21792,
+        "thermo_physical_time": 0.2,
+        "thermo_wall_ms_median": 6.927299976348877,
+        "width": 256
+      },
+      {
+        "classical_eval_mse": 0.20890460908412933,
+        "classical_flop_proxy": 50331648,
+        "classical_param_bytes": 133504,
+        "classical_param_count": 33376,
+        "classical_wall_ms_median": 0.7362000346183777,
+        "thermo_eval_mse": 0.28372010588645935,
+        "thermo_param_bytes": 156800,
+        "thermo_param_count": 39200,
+        "thermo_physical_time": 0.2,
+        "thermo_wall_ms_median": 14.921600341796875,
+        "width": 512
+      },
+      {
+        "classical_eval_mse": 0.3712250590324402,
+        "classical_flop_proxy": 100663296,
+        "classical_param_bytes": 266624,
+        "classical_param_count": 66656,
+        "classical_wall_ms_median": 0.08139991760253906,
+        "thermo_eval_mse": 0.5043608546257019,
+        "thermo_param_bytes": 296064,
+        "thermo_param_count": 74016,
+        "thermo_physical_time": 0.2,
+        "thermo_wall_ms_median": 1.3370000123977661,
+        "width": 1024
+      },
+      {
+        "classical_eval_mse": 0.5527703762054443,
+        "classical_flop_proxy": 201326592,
+        "classical_param_bytes": 532864,
+        "classical_param_count": 133216,
+        "classical_wall_ms_median": 0.09589991718530655,
+        "thermo_eval_mse": 0.6062233448028564,
+        "thermo_param_bytes": 574592,
+        "thermo_param_count": 143648,
+        "thermo_physical_time": 0.2,
+        "thermo_wall_ms_median": 1.371000051498413,
+        "width": 2048
+      },
+      {
+        "classical_eval_mse": 0.3096735179424286,
+        "classical_flop_proxy": 402653184,
+        "classical_param_bytes": 1065344,
+        "classical_param_count": 266336,
+        "classical_wall_ms_median": 0.11649995297193527,
+        "thermo_eval_mse": 0.24546943604946136,
+        "thermo_param_bytes": 1131648,
+        "thermo_param_count": 282912,
+        "thermo_physical_time": 0.2,
+        "thermo_wall_ms_median": 3.5371999740600586,
+        "width": 4096
+      }
+    ]
+  },
+  "name": "transformer_vs_classical_width_benchmark"
+}

@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "thermocompute"
+version = "0.1.0"
+description = "PyTorch emulator for thermodynamic probabilistic computing primitives."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+  { name = "thermocompute contributors" },
+]
+keywords = [
+  "thermodynamic computing",
+  "probabilistic computing",
+  "pytorch",
+  "stochastic neural networks",
+  "transformers",
+]
+dependencies = [
+  "torch>=2.2",
+  "numpy>=1.24",
+]
+
+[project.optional-dependencies]
+experiments = ["matplotlib>=3.7"]
+test = ["pytest>=8.0"]
+cuda = ["ninja>=1.11"]
+
+[project.urls]
+Homepage = "https://github.com/arccoxx/thermocompute"
+Repository = "https://github.com/arccoxx/thermocompute"
+Issues = "https://github.com/arccoxx/thermocompute/issues"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["thermocompute*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

@@ -1,0 +1,72 @@
+{
+  "metrics": {
+    "device": "cuda",
+    "physical_time_range": 0.0,
+    "rows": [
+      {
+        "out_features": 32,
+        "output_nan_fraction": 0.0,
+        "output_std": 0.44552332162857056,
+        "parameter_bytes": 4608,
+        "parameter_count": 1152,
+        "physical_time": 0.2,
+        "wall_ms_median": 30.636199951171875
+      },
+      {
+        "out_features": 64,
+        "output_nan_fraction": 0.0,
+        "output_std": 0.44946354627609253,
+        "parameter_bytes": 9216,
+        "parameter_count": 2304,
+        "physical_time": 0.2,
+        "wall_ms_median": 5.007800102233887
+      },
+      {
+        "out_features": 128,
+        "output_nan_fraction": 0.0,
+        "output_std": 0.4524279534816742,
+        "parameter_bytes": 18432,
+        "parameter_count": 4608,
+        "physical_time": 0.2,
+        "wall_ms_median": 5.619100093841553
+      },
+      {
+        "out_features": 256,
+        "output_nan_fraction": 0.0,
+        "output_std": 0.45091378688812256,
+        "parameter_bytes": 36864,
+        "parameter_count": 9216,
+        "physical_time": 0.2,
+        "wall_ms_median": 30.01569938659668
+      },
+      {
+        "out_features": 512,
+        "output_nan_fraction": 0.0,
+        "output_std": 0.4499109089374542,
+        "parameter_bytes": 73728,
+        "parameter_count": 18432,
+        "physical_time": 0.2,
+        "wall_ms_median": 35.9984016418457
+      },
+      {
+        "out_features": 1024,
+        "output_nan_fraction": 0.0,
+        "output_std": 0.4495425224304199,
+        "parameter_bytes": 147456,
+        "parameter_count": 36864,
+        "physical_time": 0.2,
+        "wall_ms_median": 16.340900421142578
+      },
+      {
+        "out_features": 2048,
+        "output_nan_fraction": 0.0,
+        "output_std": 0.4508722722530365,
+        "parameter_bytes": 294912,
+        "parameter_count": 73728,
+        "physical_time": 0.2,
+        "wall_ms_median": 9.919899940490723
+      }
+    ]
+  },
+  "name": "thermoneuron_width_scaling"
+}
