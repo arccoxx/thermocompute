@@ -16,6 +16,14 @@
 - The plateau is an empirical software observation caused by available GPU parallelism, vectorized width, and shape-specific kernel behavior.
 - The benchmark artifacts should be read as two separate measurements: `wall_ms_median` for practical GPU performance and `physical_time` for the modeled thermodynamic substrate.
 
+## Memory-Efficient Inference
+
+- Parameter memory remains linear in thermodynamic width because current weights and readout weights must still be stored.
+- The PyTorch emulator now supports chunked projected inference for `ThermodynamicFFN`, `ThermodynamicTransformerLayer`, and `ThermodynamicTransformerBlock`.
+- Chunking reduces peak thermodynamic state/activation memory from width-proportional `O(batch * seq * width * replicas)` to `O(batch * seq * chunk_size * replicas)`.
+- Chunking can increase emulator wall time because chunks execute sequentially in software.
+- Chunking does not change modeled physical time; it is an emulator memory strategy for representing a parallel physical array on finite VRAM.
+
 ## What This Does Not Prove
 
 - It does not prove PyTorch wall time is universally constant with width.

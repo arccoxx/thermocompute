@@ -6,6 +6,7 @@ from typing import Literal, Optional
 
 import torch
 from torch import Tensor, nn
+import torch.nn.functional as F
 
 from .neurons import ThermodynamicNeuronLayer, ThermodynamicRunInfo
 
@@ -27,6 +28,21 @@ class ThermodynamicTransformerInfo:
     used_tempering: bool
     swap_attempts: int
     swap_acceptance: float
+
+
+def _aggregate_chunk_infos(infos: list[ThermodynamicRunInfo]) -> ThermodynamicRunInfo:
+    if not infos:
+        raise ValueError("at least one chunk info is required")
+    attempts = sum(info.swap_attempts for info in infos)
+    weighted_accept = sum(info.swap_attempts * info.swap_acceptance for info in infos)
+    return ThermodynamicRunInfo(
+        physical_time=infos[0].physical_time,
+        n_steps=infos[0].n_steps,
+        n_replicas=max(info.n_replicas for info in infos),
+        used_tempering=any(info.used_tempering for info in infos),
+        swap_attempts=attempts,
+        swap_acceptance=float(weighted_accept / attempts) if attempts else 0.0,
+    )
 
 
 class ThermodynamicSelfAttention(nn.Module):
@@ -174,6 +190,7 @@ class ThermodynamicTransformerLayer(nn.Module):
         state_clip: float = 8.0,
         force_clip: float = 80.0,
         residual_scale: float = 1.0,
+        memory_efficient_chunk_size: int | None = None,
     ) -> None:
         super().__init__()
         if thermo_hidden_dim <= 0:
@@ -181,6 +198,11 @@ class ThermodynamicTransformerLayer(nn.Module):
         self.embed_dim = int(embed_dim)
         self.thermo_hidden_dim = int(thermo_hidden_dim)
         self.residual_scale = float(residual_scale)
+        if memory_efficient_chunk_size is not None and memory_efficient_chunk_size <= 0:
+            raise ValueError("memory_efficient_chunk_size must be positive when provided")
+        self.memory_efficient_chunk_size = (
+            int(memory_efficient_chunk_size) if memory_efficient_chunk_size is not None else None
+        )
 
         self.norm1 = nn.LayerNorm(embed_dim)
         self.attention = ThermodynamicSelfAttention(
@@ -221,6 +243,7 @@ class ThermodynamicTransformerLayer(nn.Module):
         attn_mask: Optional[Tensor] = None,
         causal: bool = False,
         generator: Optional[torch.Generator] = None,
+        chunk_size: int | None = None,
         return_info: bool = False,
     ) -> Tensor | tuple[Tensor, ThermodynamicTransformerInfo]:
         if x.ndim != 3:
@@ -234,9 +257,19 @@ class ThermodynamicTransformerLayer(nn.Module):
         ff_in = self.norm2(x)
         batch, seq_len, embed_dim = ff_in.shape
         ff_flat = ff_in.reshape(batch * seq_len, embed_dim)
-        thermo, ff_info = self.thermo_ff(ff_flat, generator=generator, return_info=True)
-        thermo = torch.tanh(thermo)
-        ff = self.out_proj(thermo).view(batch, seq_len, embed_dim)
+        effective_chunk = chunk_size if chunk_size is not None else self.memory_efficient_chunk_size
+        if effective_chunk is not None and effective_chunk < self.thermo_hidden_dim:
+            ff, ff_info = self._project_thermo_ff_chunked(
+                ff_flat,
+                batch,
+                seq_len,
+                int(effective_chunk),
+                generator=generator,
+            )
+        else:
+            thermo, ff_info = self.thermo_ff(ff_flat, generator=generator, return_info=True)
+            thermo = torch.tanh(thermo)
+            ff = self.out_proj(thermo).view(batch, seq_len, embed_dim)
         y = x + self.residual_scale * ff
 
         info = ThermodynamicTransformerInfo(
@@ -254,6 +287,34 @@ class ThermodynamicTransformerLayer(nn.Module):
         if return_info:
             return y, info
         return y
+
+    def _project_thermo_ff_chunked(
+        self,
+        ff_flat: Tensor,
+        batch: int,
+        seq_len: int,
+        chunk_size: int,
+        *,
+        generator: Optional[torch.Generator],
+    ) -> tuple[Tensor, ThermodynamicRunInfo]:
+        if chunk_size <= 0:
+            raise ValueError("chunk_size must be positive")
+        flat_out = ff_flat.new_zeros(ff_flat.shape[0], self.embed_dim)
+        infos: list[ThermodynamicRunInfo] = []
+        for start in range(0, self.thermo_hidden_dim, chunk_size):
+            end = min(start + chunk_size, self.thermo_hidden_dim)
+            chunk, info = self.thermo_ff.forward_chunk(
+                ff_flat,
+                start,
+                end,
+                generator=generator,
+                return_info=True,
+            )
+            chunk = torch.tanh(chunk)
+            flat_out = flat_out + F.linear(chunk, self.out_proj.weight[:, start:end], None)
+            infos.append(info)
+        flat_out = flat_out + self.out_proj.bias
+        return flat_out.view(batch, seq_len, self.embed_dim), _aggregate_chunk_infos(infos)
 
     def thermodynamic_features(
         self,

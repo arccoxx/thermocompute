@@ -236,10 +236,12 @@ layer = ThermodynamicTransformerLayer(
     attention_t_f=0.05,
     t_f=0.4,
     dt=0.04,
+    memory_efficient_chunk_size=128,
 ).to(device)
 
 tokens = torch.randn(8, 32, 64, device=device)
 tokens_out, layer_info = layer(tokens, causal=True, return_info=True)
+tokens_out_low_mem, _ = layer(tokens, causal=True, chunk_size=64, return_info=True)
 print(tokens_out.shape)
 print(layer_info.physical_time)
 
@@ -282,6 +284,7 @@ block_config = ThermodynamicTransformerConfig(
     num_heads=4,
     thermo_hidden_dim=512,
     neuron=ThermodynamicNeuronConfig(t_f=0.2, dt=0.04, n_replicas=2, output="mean"),
+    memory_efficient_chunk_size=128,
 )
 block = ThermodynamicTransformerBlock(block_config).to(device)
 block_out, block_info = block(tokens, causal=True, return_info=True)
@@ -351,6 +354,67 @@ it increases parameter count, memory in the emulator, hardware area in the
 substrate model, and total power. The research advantage is specifically that
 width does not increase the modeled forward-pass latency when all units evolve
 in parallel for the same fixed observation window.
+
+### Memory-Efficient Inference
+
+Very wide thermodynamic layers are memory-bound before they are conceptually
+latency-bound. A dense classical FFN and a thermodynamic FFN both carry
+width-linear parameter memory:
+
+```text
+M_params ~= q * H * (D + E)
+```
+
+where `q` is bytes per scalar, `H` is hidden thermodynamic width, `D` is input
+dimension, and `E` is output dimension. The thermodynamic emulator also needs
+state memory:
+
+```text
+M_state ~= q * (batch * seq) * H * (replicas + overhead)
+```
+
+For inference, `thermocompute` now supports chunked projected evaluation. The
+full width still exists in the weights, but the emulator only materializes a
+slice of hidden thermodynamic state at a time:
+
+```text
+M_state_chunked ~= q * (batch * seq) * C * (replicas + overhead)
+```
+
+where `C = memory_efficient_chunk_size`. The readout is accumulated chunk by
+chunk:
+
+```text
+y = bias + sum_i W_out[:, i:i+C] * tanh(thermo_chunk_i(x))
+```
+
+This keeps peak activation/state memory proportional to `C` instead of `H`.
+It does not reduce parameter memory, and it can increase software wall time
+because chunks run sequentially in the emulator. The modeled hardware physical
+time remains `t_f`, because the chunks represent parallel physical units on
+the target substrate.
+
+Enable it at construction:
+
+```python
+layer = ThermodynamicTransformerLayer(
+    embed_dim=4096,
+    num_heads=32,
+    thermo_hidden_dim=500_000,
+    t_f=0.2,
+    dt=0.04,
+    memory_efficient_chunk_size=8192,
+).to(device)
+```
+
+or override per call:
+
+```python
+y, info = layer(tokens, chunk_size=4096, return_info=True)
+```
+
+The same option is available on `ThermodynamicFFN` and
+`ThermodynamicTransformerConfig`.
 
 ### BinaryPBit
 
@@ -539,10 +603,12 @@ config = ThermodynamicTransformerConfig(
     num_heads=8,
     thermo_hidden_dim=2048,
     neuron=ThermodynamicNeuronConfig(t_f=0.2, dt=0.04, n_replicas=2, output="mean"),
+    memory_efficient_chunk_size=512,
 )
 
 block = ThermodynamicTransformerBlock(config).to(device)
 out, info = block(tokens, causal=True, return_info=True)
+out_low_mem, _ = block(tokens, causal=True, chunk_size=256, return_info=True)
 
 model = nn.Module()
 model.ffn = nn.Sequential(nn.Linear(128, 512), nn.GELU(), nn.Linear(512, 128))
@@ -555,6 +621,10 @@ so it can be dropped into blocks that already own their residual connection.
 `ThermodynamicTransformerBlock` is a complete pre-norm block with attention,
 residuals, and a thermodynamic FFN. Both modules support `.to(device, dtype)`,
 `state_dict` save/load, autograd, train/eval mode, and `return_info=True`.
+
+For very wide layers, set `memory_efficient_chunk_size` in the config or pass
+`chunk_size` during `forward`. This keeps peak inference state memory bounded
+by the chunk size while preserving the public shape contract.
 
 `replace_ffn` is deliberately conservative. It only replaces plain
 `nn.Sequential` MLPs whose first linear input size and last linear output size

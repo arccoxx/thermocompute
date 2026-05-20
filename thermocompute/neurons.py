@@ -85,15 +85,22 @@ class ThermodynamicNeuronLayer(nn.Module):
     def currents(self, x: Tensor) -> Tensor:
         return torch.nn.functional.linear(x, self.weight, self.bias)
 
-    def _attempt_tempering_swaps(self, state: Tensor, current: Tensor) -> tuple[Tensor, int, int]:
+    def _attempt_tempering_swaps(
+        self,
+        state: Tensor,
+        current: Tensor,
+        j2: Tensor,
+        j3: Tensor,
+        j4: Tensor,
+    ) -> tuple[Tensor, int, int]:
         if self.n_replicas < 2:
             return state, 0, 0
         attempts = 0
         accepts = 0
         beta = 1.0 / self.temperatures.to(device=state.device, dtype=state.dtype)
-        j2 = self.j2.view(1, 1, -1)
-        j3 = self.j3.view(1, 1, -1)
-        j4 = self.j4.view(1, 1, -1)
+        j2 = j2.view(1, 1, -1)
+        j3 = j3.view(1, 1, -1)
+        j4 = j4.view(1, 1, -1)
         current_b = current.unsqueeze(0)
         for start in (0, 1):
             for r in range(start, self.n_replicas - 1, 2):
@@ -110,16 +117,15 @@ class ThermodynamicNeuronLayer(nn.Module):
                 accepts += int(accept.sum().detach().cpu())
         return state, attempts, accepts
 
-    def forward(
+    def _simulate_current(
         self,
-        x: Tensor,
+        current: Tensor,
+        j2: Tensor,
+        j3: Tensor,
+        j4: Tensor,
         *,
-        generator: Optional[torch.Generator] = None,
-        return_info: bool = False,
-    ) -> Tensor | tuple[Tensor, ThermodynamicRunInfo]:
-        if x.ndim == 1:
-            x = x.unsqueeze(-1)
-        current = self.currents(x)
+        generator: Optional[torch.Generator],
+    ) -> tuple[Tensor, ThermodynamicRunInfo]:
         state = torch.zeros(
             self.n_replicas,
             current.shape[0],
@@ -128,22 +134,22 @@ class ThermodynamicNeuronLayer(nn.Module):
             dtype=current.dtype,
         )
         temperatures = self.temperatures.to(device=current.device, dtype=current.dtype).view(self.n_replicas, 1, 1)
-        j2 = self.j2.view(1, 1, -1)
-        j3 = self.j3.view(1, 1, -1)
-        j4 = self.j4.view(1, 1, -1)
+        j2_b = j2.view(1, 1, -1)
+        j3_b = j3.view(1, 1, -1)
+        j4_b = j4.view(1, 1, -1)
         current_b = current.unsqueeze(0)
         swap_attempts = 0
         swap_accepts = 0
 
         for step in range(self.n_steps):
-            force = -(j2 * state + j3 * state.square() + j4 * state.pow(3) - current_b)
+            force = -(j2_b * state + j3_b * state.square() + j4_b * state.pow(3) - current_b)
             force = force.clamp(-self.force_clip, self.force_clip)
             noise = torch.randn(state.shape, device=state.device, dtype=state.dtype, generator=generator)
             state = state + self.dt * force + torch.sqrt(2.0 * temperatures * self.dt) * noise
             state = torch.nan_to_num(state, nan=0.0, posinf=self.state_clip, neginf=-self.state_clip)
             state = state.clamp(-self.state_clip, self.state_clip)
             if self.tempering and self.n_replicas > 1 and (step + 1) % self.swap_interval == 0:
-                state, attempts, accepts = self._attempt_tempering_swaps(state, current)
+                state, attempts, accepts = self._attempt_tempering_swaps(state, current, j2, j3, j4)
                 swap_attempts += attempts
                 swap_accepts += accepts
 
@@ -159,6 +165,53 @@ class ThermodynamicNeuronLayer(nn.Module):
             swap_attempts=swap_attempts,
             swap_acceptance=float(swap_accepts / swap_attempts) if swap_attempts else 0.0,
         )
+        return y, info
+
+    def forward_chunk(
+        self,
+        x: Tensor,
+        start: int,
+        end: int,
+        *,
+        generator: Optional[torch.Generator] = None,
+        return_info: bool = False,
+    ) -> Tensor | tuple[Tensor, ThermodynamicRunInfo]:
+        """Evaluate a contiguous output-width slice.
+
+        This supports memory-efficient projected inference in transformer FFNs:
+        callers can materialize thermodynamic state for only `end - start`
+        neurons at a time, then accumulate the downstream readout.
+        """
+
+        if x.ndim == 1:
+            x = x.unsqueeze(-1)
+        start = max(0, int(start))
+        end = min(self.out_features, int(end))
+        if start >= end:
+            raise ValueError("chunk start must be smaller than chunk end")
+        current = torch.nn.functional.linear(x, self.weight[start:end], self.bias[start:end])
+        y, info = self._simulate_current(
+            current,
+            self.j2[start:end],
+            self.j3[start:end],
+            self.j4[start:end],
+            generator=generator,
+        )
+        if return_info:
+            return y, info
+        return y
+
+    def forward(
+        self,
+        x: Tensor,
+        *,
+        generator: Optional[torch.Generator] = None,
+        return_info: bool = False,
+    ) -> Tensor | tuple[Tensor, ThermodynamicRunInfo]:
+        if x.ndim == 1:
+            x = x.unsqueeze(-1)
+        current = self.currents(x)
+        y, info = self._simulate_current(current, self.j2, self.j3, self.j4, generator=generator)
         if return_info:
             return y, info
         return y

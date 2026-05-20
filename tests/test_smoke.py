@@ -111,6 +111,44 @@ def test_integration_ffn_block_and_replace() -> None:
     assert not model.ffn.training
 
 
+def test_memory_efficient_ffn_matches_full_deterministic() -> None:
+    config = ThermodynamicNeuronConfig(t_f=0.1, dt=0.05, temperature=0.0)
+    full = ThermodynamicFFN(8, 20, neuron_config=config)
+    chunked = ThermodynamicFFN(8, 20, neuron_config=config, memory_efficient_chunk_size=6)
+    chunked.load_state_dict(full.state_dict())
+    x = torch.randn(2, 3, 8)
+    y_full, info_full = full(x, return_info=True)
+    y_chunked, info_chunked = chunked(x, return_info=True)
+    assert torch.allclose(y_full, y_chunked, atol=1e-6)
+    assert info_full.physical_time == info_chunked.physical_time
+
+
+def test_memory_efficient_transformer_layer_matches_full_deterministic() -> None:
+    full = ThermodynamicTransformerLayer(
+        8,
+        2,
+        thermo_hidden_dim=20,
+        t_f=0.1,
+        dt=0.05,
+        temperature=0.0,
+    )
+    chunked = ThermodynamicTransformerLayer(
+        8,
+        2,
+        thermo_hidden_dim=20,
+        t_f=0.1,
+        dt=0.05,
+        temperature=0.0,
+        memory_efficient_chunk_size=6,
+    )
+    chunked.load_state_dict(full.state_dict())
+    x = torch.randn(2, 3, 8)
+    y_full, info_full = full(x, return_info=True)
+    y_chunked, info_chunked = chunked(x, return_info=True)
+    assert torch.allclose(y_full, y_chunked, atol=1e-6)
+    assert info_full.physical_time == info_chunked.physical_time
+
+
 def test_integration_block_reports_tempering_swaps() -> None:
     config = ThermodynamicTransformerConfig(
         embed_dim=8,

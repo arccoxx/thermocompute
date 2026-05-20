@@ -84,6 +84,7 @@ class ThermodynamicTransformerConfig:
     attention_t_f: float = 0.0
     neuron: ThermodynamicNeuronConfig = ThermodynamicNeuronConfig()
     residual_scale: float = 1.0
+    memory_efficient_chunk_size: int | None = None
 
     def build_layer(self):
         from .transformer import ThermodynamicTransformerLayer
@@ -109,6 +110,7 @@ class ThermodynamicTransformerConfig:
             state_clip=self.neuron.state_clip,
             force_clip=self.neuron.force_clip,
             residual_scale=self.residual_scale,
+            memory_efficient_chunk_size=self.memory_efficient_chunk_size,
         )
 
     def build_ffn(self):
@@ -119,6 +121,7 @@ class ThermodynamicTransformerConfig:
             self.thermo_hidden_dim,
             neuron_config=self.neuron,
             residual_scale=self.residual_scale,
+            memory_efficient_chunk_size=self.memory_efficient_chunk_size,
         )
 
 
