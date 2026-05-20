@@ -127,3 +127,25 @@ This is quantization-aware emulation. It is useful for research, memory
 estimation, and training-through-low-precision experiments. It is not a claim
 that every backend has native int4 training kernels, nor that low-bit training
 will beat classical training on all tasks.
+
+## Training Comparison
+
+Use:
+
+```powershell
+python scripts/run_precision_training_comparison.py --device cpu --steps 20 --repeats 3 --outdir artifacts
+```
+
+This compares:
+
+- standard fp32 training;
+- autocast mixed-precision fp16/bf16 training with fp32 master parameters;
+- quantization-aware fp16/bf16/fp8/int8/int4/int2/binary thermodynamic FFN
+  training with straight-through gradients.
+
+The current artifact is
+`artifacts/precision_training_comparison.json`. In the checked-in tiny CPU
+experiment, fp16, bf16, fp8, int8, and int4 stayed within roughly 1% of fp32
+final eval loss. Int2 was materially worse, and binary still reduced loss but
+had weaker training improvement. That is a useful feasibility signal, not a
+general benchmark claim.

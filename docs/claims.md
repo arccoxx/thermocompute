@@ -5,6 +5,7 @@
 - `thermocompute` can emulate p-bits/PDITs, PMODE, PMOG, quartic thermodynamic neurons, and thermodynamic transformer-style blocks in PyTorch.
 - Generic distribution support covers any distribution available through `torch.distributions`, plus custom user-provided distribution adapters.
 - Low-precision support provides quantization-aware thermodynamic FFN inference and small training experiments for fp16/bf16/fp8/int8/int4/int2/binary formats.
+- The small precision-training comparison shows several low-precision thermodynamic FFN modes can train to fp32-like loss on a tiny deterministic task.
 - Fixed-depth thermodynamic neuron and transformer feed-forward layers report constant modeled physical time as width increases.
 - The benchmark suite separates modeled physical time from PyTorch wall time.
 - Wider thermodynamic blocks can be evaluated under a constant physical-time model while classical FFN FLOP proxies grow with width.
@@ -40,6 +41,7 @@
 - It does not provide full production model support for every Hugging Face architecture.
 - It does not make the optional CUDA extension required or production-ready.
 - It does not provide native packed int4/int2/binary CUDA kernels; current low-precision training uses quantization-aware emulation with straight-through gradients.
+- It does not prove low-precision thermodynamic training beats mixed precision or fp32 training at production scale.
 - It does not reimplement every named distribution in probability theory from scratch; it delegates broad distribution coverage to PyTorch's distribution library.
 
 ## Current Best Claims

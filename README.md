@@ -613,6 +613,17 @@ every backend has native int4 training kernels. See
 [docs/precision_scheme.md](docs/precision_scheme.md) for the exact method and
 `scripts/run_precision_experiments.py` for small low-memory experiments.
 
+For a direct comparison against standard and mixed-precision training:
+
+```powershell
+python scripts/run_precision_training_comparison.py --device cpu --steps 20 --repeats 3 --outdir artifacts
+```
+
+The current tiny CPU comparison shows fp16/bf16/fp8/int8/int4 training tracking
+standard fp32 closely on final eval loss, while int2 and binary remain usable
+but less accurate. Treat this as a smoke-scale feasibility result, not a
+claim of production low-bit training superiority.
+
 ### BinaryPBit
 
 `BinaryPBit` is a Bernoulli sampler controlled by a voltage-like input:
@@ -1362,6 +1373,7 @@ python scripts/run_stress.py
 python scripts/run_smoke.py
 python scripts/run_poc.py
 python scripts/run_precision_experiments.py --device cpu --outdir artifacts
+python scripts/run_precision_training_comparison.py --device cpu --steps 20 --repeats 3 --outdir artifacts
 python scripts/run_experiments.py --outdir artifacts
 python scripts/run_benchmarks.py --outdir artifacts
 ```
