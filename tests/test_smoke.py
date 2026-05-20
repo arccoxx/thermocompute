@@ -12,6 +12,8 @@ from thermocompute import (
     PhysicalTimeReport,
     PMODE,
     PMOG,
+    QuantizationConfig,
+    QuantizedThermodynamicFFN,
     ThermodynamicFFN,
     ThermodynamicMLP,
     ThermodynamicNeuronConfig,
@@ -25,7 +27,13 @@ from thermocompute import (
     estimate_classical_ffn_memory,
     estimate_thermo_ffn_memory,
     available_distributions,
+    available_numeric_formats,
+    estimate_quantized_thermo_ffn_memory,
+    fit_quantized_ffn_mse,
+    numeric_format_bits,
     make_distribution,
+    quantize_tensor,
+    quantized_storage_nbytes,
     sample_distribution,
     replace_ffn,
     run_superiority_demo,
@@ -233,6 +241,59 @@ def test_generic_distribution_support() -> None:
     assert torch.isfinite(adapter.log_prob(adapted)).all()
 
 
+def test_quantized_numeric_formats_and_ste_gradients() -> None:
+    formats = {"fp32", "fp16", "bf16", "int8", "int4", "int2", "binary"}
+    formats.update(name for name in ("fp8_e4m3fn", "fp8_e5m2") if name in available_numeric_formats())
+    assert formats.issubset(set(available_numeric_formats()))
+    assert numeric_format_bits("int4") == 4
+    assert quantized_storage_nbytes(3, "int4") == 2
+
+    x = torch.linspace(-1.5, 1.5, 17, requires_grad=True)
+    for name in sorted(formats):
+        q = quantize_tensor(x, QuantizationConfig(format=name, compute_dtype=torch.float32, per_channel=False))
+        assert q.shape == x.shape
+        assert q.dtype == torch.float32
+        assert torch.isfinite(q).all()
+    q4 = quantize_tensor(x, QuantizationConfig(format="int4", compute_dtype=torch.float32))
+    q4.sum().backward()
+    assert x.grad is not None
+    assert torch.isfinite(x.grad).all()
+
+
+def test_quantized_thermodynamic_ffn_training_and_memory() -> None:
+    torch.manual_seed(123)
+    config = ThermodynamicNeuronConfig(t_f=0.08, dt=0.04, temperature=0.0)
+    qconfig = QuantizationConfig(format="int4", compute_dtype=torch.float32, per_channel=True)
+    model = QuantizedThermodynamicFFN(
+        4,
+        12,
+        quantization=qconfig,
+        neuron_config=config,
+        memory_efficient_chunk_size=5,
+    )
+    x = torch.randn(4, 2, 4)
+    target = torch.zeros_like(x)
+    y, info = model(x, return_info=True)
+    assert y.shape == x.shape
+    assert info.physical_time == config.t_f
+    assert torch.isfinite(y).all()
+
+    result = fit_quantized_ffn_mse(model, x, target, n_steps=6, learning_rate=5e-3)
+    assert result.format == "int4"
+    assert result.final_loss < result.initial_loss
+
+    estimate = estimate_quantized_thermo_ffn_memory(
+        4,
+        1024,
+        batch_tokens=8,
+        parameter_format="int4",
+        state_format="fp16",
+        chunk_size=64,
+    )
+    assert estimate.peak_bytes > 0
+    assert estimate.parameter_bits == 1024 * (4 + 4 + 4) * 4
+
+
 def test_integration_block_reports_tempering_swaps() -> None:
     config = ThermodynamicTransformerConfig(
         embed_dim=8,
@@ -404,10 +465,18 @@ def test_public_imports() -> None:
         "fit_transformer_end_to_end_cold",
         "fit_transformer_end_to_end_parallel_tempering",
         "DistributionSampler",
+        "QuantizationConfig",
+        "QuantizedThermodynamicFFN",
         "available_distributions",
+        "available_numeric_formats",
         "estimate_classical_ffn_memory",
+        "estimate_quantized_thermo_ffn_memory",
         "estimate_thermo_ffn_memory",
+        "fit_quantized_ffn_mse",
         "make_distribution",
+        "numeric_format_bits",
+        "quantize_tensor",
+        "quantized_storage_nbytes",
         "sample_distribution",
         "run_superiority_demo",
         "__version__",

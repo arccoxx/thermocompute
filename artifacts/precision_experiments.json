@@ -1,0 +1,174 @@
+{
+  "name": "precision_experiments",
+  "device": "cpu",
+  "formats": [
+    "fp32",
+    "fp16",
+    "bf16",
+    "fp8_e4m3fn",
+    "fp8_e5m2",
+    "int8",
+    "int4",
+    "int2",
+    "binary"
+  ],
+  "quantization_checks": [
+    {
+      "format": "fp32",
+      "max_abs_error": 0.0,
+      "finite": true,
+      "wall_ms": 1.3327000197023153
+    },
+    {
+      "format": "fp16",
+      "max_abs_error": 0.0,
+      "finite": true,
+      "wall_ms": 0.19409996457397938
+    },
+    {
+      "format": "bf16",
+      "max_abs_error": 0.0,
+      "finite": true,
+      "wall_ms": 0.12129999231547117
+    },
+    {
+      "format": "fp8_e4m3fn",
+      "max_abs_error": 0.0625,
+      "finite": true,
+      "wall_ms": 0.11040002573281527
+    },
+    {
+      "format": "fp8_e5m2",
+      "max_abs_error": 0.125,
+      "finite": true,
+      "wall_ms": 0.1343999756500125
+    },
+    {
+      "format": "int8",
+      "max_abs_error": 0.007874011993408203,
+      "finite": true,
+      "wall_ms": 0.2893999917432666
+    },
+    {
+      "format": "int4",
+      "max_abs_error": 0.14285707473754883,
+      "finite": true,
+      "wall_ms": 0.1428000396117568
+    },
+    {
+      "format": "int2",
+      "max_abs_error": 1.0,
+      "finite": true,
+      "wall_ms": 0.12049998622387648
+    },
+    {
+      "format": "binary",
+      "max_abs_error": 1.0153846740722656,
+      "finite": true,
+      "wall_ms": 0.2009000163525343
+    }
+  ],
+  "training_checks": [
+    {
+      "format": "fp32",
+      "forward_loss": 0.415946364402771,
+      "initial_loss": 0.415946364402771,
+      "final_loss": 0.3836725950241089,
+      "loss_delta": 0.03227376937866211,
+      "fit_wall_ms": 17.825799994170666,
+      "physical_time": 0.08
+    },
+    {
+      "format": "fp16",
+      "forward_loss": 0.43378639221191406,
+      "initial_loss": 0.43378639221191406,
+      "final_loss": 0.40482914447784424,
+      "loss_delta": 0.028957247734069824,
+      "fit_wall_ms": 21.22400002554059,
+      "physical_time": 0.08
+    },
+    {
+      "format": "bf16",
+      "forward_loss": 0.4824572801589966,
+      "initial_loss": 0.4824572801589966,
+      "final_loss": 0.44738298654556274,
+      "loss_delta": 0.03507429361343384,
+      "fit_wall_ms": 16.10080001410097,
+      "physical_time": 0.08
+    },
+    {
+      "format": "fp8_e4m3fn",
+      "forward_loss": 0.4476362466812134,
+      "initial_loss": 0.4476362466812134,
+      "final_loss": 0.4158252477645874,
+      "loss_delta": 0.03181099891662598,
+      "fit_wall_ms": 28.17259996663779,
+      "physical_time": 0.08
+    },
+    {
+      "format": "fp8_e5m2",
+      "forward_loss": 0.45704153180122375,
+      "initial_loss": 0.45704153180122375,
+      "final_loss": 0.4236745834350586,
+      "loss_delta": 0.03336694836616516,
+      "fit_wall_ms": 26.43060008995235,
+      "physical_time": 0.08
+    },
+    {
+      "format": "int8",
+      "forward_loss": 0.4361438751220703,
+      "initial_loss": 0.4361438751220703,
+      "final_loss": 0.40704014897346497,
+      "loss_delta": 0.029103726148605347,
+      "fit_wall_ms": 28.121699928306043,
+      "physical_time": 0.08
+    },
+    {
+      "format": "int4",
+      "forward_loss": 0.41814887523651123,
+      "initial_loss": 0.41814887523651123,
+      "final_loss": 0.38711753487586975,
+      "loss_delta": 0.03103134036064148,
+      "fit_wall_ms": 32.34189993236214,
+      "physical_time": 0.08
+    },
+    {
+      "format": "int2",
+      "forward_loss": 0.44211024045944214,
+      "initial_loss": 0.44211024045944214,
+      "final_loss": 0.4056074023246765,
+      "loss_delta": 0.036502838134765625,
+      "fit_wall_ms": 30.694100074470043,
+      "physical_time": 0.08
+    },
+    {
+      "format": "binary",
+      "forward_loss": 0.48285070061683655,
+      "initial_loss": 0.48285070061683655,
+      "final_loss": 0.4603261351585388,
+      "loss_delta": 0.02252456545829773,
+      "fit_wall_ms": 28.996799956075847,
+      "physical_time": 0.08
+    }
+  ],
+  "memory": {
+    "int8": {
+      "parameter_format": "int8",
+      "parameter_bits": 4325376,
+      "state_bits": 2097152,
+      "peak_bytes": 819200
+    },
+    "int4": {
+      "parameter_format": "int4",
+      "parameter_bits": 2162688,
+      "state_bits": 2097152,
+      "peak_bytes": 548864
+    },
+    "binary": {
+      "parameter_format": "binary",
+      "parameter_bits": 540672,
+      "state_bits": 2097152,
+      "peak_bytes": 346112
+    }
+  }
+}

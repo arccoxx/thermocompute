@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -14,18 +15,23 @@ from thermocompute import (
     DeviceConfig,
     DistributionAdapter,
     DistributionSampler,
+    QuantizationConfig,
+    QuantizedThermodynamicFFN,
     ThermodynamicFFN,
     ThermodynamicNeuronConfig,
     ThermodynamicTransformerLayer,
     estimate_classical_ffn_memory,
+    estimate_quantized_thermo_ffn_memory,
     estimate_thermo_ffn_memory,
+    fit_quantized_ffn_mse,
+    quantize_tensor,
     fit_transformer_end_to_end_cold,
     set_seed,
 )
 
 
 def main() -> int:
-    cfg = DeviceConfig.auto()
+    cfg = _safe_device_config()
     device, dtype = cfg.device, cfg.dtype
     set_seed(911)
     metrics: dict[str, object] = {"device": str(device)}
@@ -35,6 +41,7 @@ def main() -> int:
     _stress_chunked_cold_training(metrics, device, dtype)
     _stress_memory_laws(metrics)
     _stress_distributions(metrics, device, dtype)
+    _stress_low_precision(metrics)
     _stress_invalid_chunk_sizes(metrics)
 
     print(json.dumps({"name": "stress_checks", "metrics": metrics}, indent=2))
@@ -206,9 +213,92 @@ def _stress_invalid_chunk_sizes(metrics: dict[str, object]) -> None:
     metrics["invalid_chunk_checks"] = failures
 
 
+def _stress_low_precision(metrics: dict[str, object]) -> None:
+    device = torch.device("cpu")
+    x = torch.linspace(-1.0, 1.0, 33, device=device, requires_grad=True)
+    checked = 0
+    for name in ("fp32", "fp16", "bf16", "int8", "int4", "int2", "binary"):
+        q = quantize_tensor(x, QuantizationConfig(format=name, compute_dtype=torch.float32))
+        if q.shape != x.shape or not torch.isfinite(q).all():
+            raise AssertionError(f"low precision quantization failed for {name}")
+        checked += 1
+    q4 = quantize_tensor(x, QuantizationConfig(format="int4", compute_dtype=torch.float32))
+    q4.square().mean().backward()
+    if x.grad is None or not torch.isfinite(x.grad).all():
+        raise AssertionError("int4 STE gradient failed")
+
+    config = ThermodynamicNeuronConfig(t_f=0.08, dt=0.04, temperature=0.0)
+    model = QuantizedThermodynamicFFN(
+        4,
+        12,
+        quantization=QuantizationConfig(format="int4", compute_dtype=torch.float32, per_channel=True),
+        neuron_config=config,
+        memory_efficient_chunk_size=5,
+    )
+    inputs = torch.randn(4, 2, 4)
+    targets = torch.zeros_like(inputs)
+    result = fit_quantized_ffn_mse(model, inputs, targets, n_steps=6, learning_rate=5e-3)
+    if result.final_loss >= result.initial_loss:
+        raise AssertionError("quantized int4 FFN training did not reduce loss")
+    estimate = estimate_quantized_thermo_ffn_memory(
+        4,
+        1024,
+        batch_tokens=8,
+        parameter_format="int4",
+        state_format="fp16",
+        chunk_size=64,
+    )
+    metrics["low_precision_formats_checked"] = checked
+    metrics["low_precision_int4_initial_loss"] = result.initial_loss
+    metrics["low_precision_int4_final_loss"] = result.final_loss
+    metrics["low_precision_int4_peak_bytes"] = estimate.peak_bytes
+
+
 def _sync(device: torch.device) -> None:
     if device.type == "cuda":
         torch.cuda.synchronize(device)
+
+
+def _safe_device_config() -> DeviceConfig:
+    if torch.cuda.is_available():
+        smi = _nvidia_smi_memory()
+        if smi is not None:
+            used_mb, total_mb, utilization = smi
+            if total_mb > 0 and (used_mb / total_mb > 0.75 or utilization > 90):
+                return DeviceConfig.auto(prefer_cuda=False)
+        try:
+            torch.cuda.empty_cache()
+            free_bytes, _ = torch.cuda.mem_get_info()
+            if free_bytes >= 1536 * 1024**2:
+                return DeviceConfig.auto()
+        except RuntimeError:
+            pass
+    return DeviceConfig.auto(prefer_cuda=False)
+
+
+def _nvidia_smi_memory() -> tuple[float, float, float] | None:
+    try:
+        result = subprocess.run(
+            [
+                "nvidia-smi",
+                "--query-gpu=memory.used,memory.total,utilization.gpu",
+                "--format=csv,noheader,nounits",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=2.0,
+        )
+    except (FileNotFoundError, subprocess.SubprocessError):
+        return None
+    line = result.stdout.strip().splitlines()[0]
+    parts = [part.strip() for part in line.split(",")]
+    if len(parts) != 3:
+        return None
+    try:
+        return float(parts[0]), float(parts[1]), float(parts[2])
+    except ValueError:
+        return None
 
 
 if __name__ == "__main__":

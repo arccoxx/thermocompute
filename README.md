@@ -3,7 +3,8 @@
 `thermocompute` is a PyTorch-first emulator for thermodynamic probabilistic
 computing. It provides software models of p-bits/PDITs, PMODE Gaussian
 samplers, PMOG mixture samplers, generic `torch.distributions` probability
-families, and fixed-observation-time thermodynamic neuron layers.
+families, low-precision quantization-aware FFNs, and fixed-observation-time
+thermodynamic neuron layers.
 
 **The punchline:** `thermocompute` lets us study neural layers where width can
 behave more like parallel fabric than sequential latency. Today, that matters
@@ -564,6 +565,53 @@ chunk graphs and integration intermediates for backward. Treat chunked cold
 training as a compatibility path today; the strongest memory guarantee is for
 inference. Future checkpointing or custom backward kernels should improve the
 training side.
+
+### Low-Precision Thermodynamic FFNs
+
+The package now includes a quantization-aware low-precision path for
+thermodynamic FFNs. It supports the common ML precision ladder:
+
+```text
+fp64, fp32, tf32-style, fp16, bf16, fp8_e4m3fn, fp8_e5m2,
+int8, int4, int2, binary
+```
+
+Use `QuantizedThermodynamicFFN` when you want the forward pass to experience
+low-precision weights, currents, states, and readout activations while keeping
+trainable master parameters in ordinary floating point:
+
+```python
+from thermocompute import (
+    QuantizationConfig,
+    QuantizedThermodynamicFFN,
+    ThermodynamicNeuronConfig,
+    fit_quantized_ffn_mse,
+)
+
+model = QuantizedThermodynamicFFN(
+    embed_dim=256,
+    hidden_dim=4096,
+    quantization=QuantizationConfig(format="int4", per_channel=True),
+    neuron_config=ThermodynamicNeuronConfig(t_f=0.08, dt=0.04, temperature=0.0),
+    memory_efficient_chunk_size=256,
+)
+
+y = model(tokens)
+result = fit_quantized_ffn_mse(model, tokens, targets, n_steps=32)
+```
+
+The low-bit integer formats use symmetric fake quantization plus a
+straight-through estimator, so training remains differentiable:
+
+```text
+forward:  quantized/dequantized int4 or int8 values
+backward: gradient passes through the quantizer to the master parameters
+```
+
+This is intentionally framed as quantization-aware emulation, not a claim that
+every backend has native int4 training kernels. See
+[docs/precision_scheme.md](docs/precision_scheme.md) for the exact method and
+`scripts/run_precision_experiments.py` for small low-memory experiments.
 
 ### BinaryPBit
 
@@ -1313,6 +1361,7 @@ python scripts/run_tests.py
 python scripts/run_stress.py
 python scripts/run_smoke.py
 python scripts/run_poc.py
+python scripts/run_precision_experiments.py --device cpu --outdir artifacts
 python scripts/run_experiments.py --outdir artifacts
 python scripts/run_benchmarks.py --outdir artifacts
 ```
