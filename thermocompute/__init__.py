@@ -18,6 +18,20 @@ from .distributions import (
     make_distribution,
     sample_distribution,
 )
+from .flow_matching import (
+    FlowMatchFitResult,
+    FlowSampleResult,
+    FlowVelocityMLP,
+    ThermodynamicFlowVelocity,
+    fit_flow_matching,
+    flow_matching_loss,
+    flow_matching_pair_loss,
+    flow_speedup_vs_diffusion,
+    make_mog2d,
+    rbf_mmd2,
+    sample_flow,
+    time_embedding,
+)
 from .integration import ThermodynamicFFN, ThermodynamicTransformerBlock, replace_ffn
 from .metrics import ExperimentResult, moment_summary, physical_advantage_ratio
 from .memory import (
@@ -78,6 +92,9 @@ __all__ = [
     "DistributionSpec",
     "ExperimentResult",
     "FFNMemoryEstimate",
+    "FlowMatchFitResult",
+    "FlowSampleResult",
+    "FlowVelocityMLP",
     "IsingEnergy",
     "PhysicalTimeReport",
     "PMODE",
@@ -88,6 +105,7 @@ __all__ = [
     "QuantizedFitResult",
     "QuantizedThermodynamicFFN",
     "ThermodynamicMLP",
+    "ThermodynamicFlowVelocity",
     "ThermodynamicNeuronLayer",
     "ThermodynamicNeuronConfig",
     "ThermodynamicRunInfo",
@@ -105,6 +123,10 @@ __all__ = [
     "fit_transformer_end_to_end_parallel_tempering",
     "fit_transformer_readout_parallel_tempering",
     "fit_transformer_readout_ridge",
+    "fit_flow_matching",
+    "flow_matching_loss",
+    "flow_matching_pair_loss",
+    "flow_speedup_vs_diffusion",
     "available_distributions",
     "available_numeric_formats",
     "distribution_class",
@@ -114,6 +136,7 @@ __all__ = [
     "fit_quantized_ffn_mse",
     "get_numeric_format",
     "make_distribution",
+    "make_mog2d",
     "moment_summary",
     "numeric_format_bits",
     "physical_advantage_ratio",
@@ -121,7 +144,10 @@ __all__ = [
     "quantize_tensor",
     "quantized_storage_nbytes",
     "replace_ffn",
+    "rbf_mmd2",
     "run_superiority_demo",
     "sample_distribution",
+    "sample_flow",
     "set_seed",
+    "time_embedding",
 ]

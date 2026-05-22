@@ -1,0 +1,126 @@
+{
+  "name": "flow_matching_experiment",
+  "device": "cpu",
+  "data": "2D eight-mode Gaussian mixture",
+  "train_steps": 96,
+  "sample_count": 128,
+  "fits": {
+    "classical_flow_mlp": {
+      "initial_loss": 3.101433515548706,
+      "final_loss": 2.4944889545440674,
+      "n_steps": 96,
+      "fit_wall_ms": 71.63569994736463
+    },
+    "thermodynamic_flow": {
+      "initial_loss": 2.700890064239502,
+      "final_loss": 2.38208270072937,
+      "n_steps": 96,
+      "fit_wall_ms": 236.2612000433728
+    }
+  },
+  "samples": [
+    {
+      "model": "classical_flow_mlp",
+      "flow_steps": 1,
+      "mmd2_to_reference": 0.0695047676563263,
+      "wall_ms": 0.2348999259993434,
+      "function_evaluations": 1,
+      "modeled_physical_time": 0.0,
+      "eval_speedup_vs_50_step_diffusion": 50.0,
+      "eval_speedup_vs_100_step_diffusion": 100.0
+    },
+    {
+      "model": "classical_flow_mlp",
+      "flow_steps": 2,
+      "mmd2_to_reference": 0.05266678333282471,
+      "wall_ms": 0.17339992336928844,
+      "function_evaluations": 2,
+      "modeled_physical_time": 0.0,
+      "eval_speedup_vs_50_step_diffusion": 25.0,
+      "eval_speedup_vs_100_step_diffusion": 50.0
+    },
+    {
+      "model": "classical_flow_mlp",
+      "flow_steps": 4,
+      "mmd2_to_reference": 0.07437145709991455,
+      "wall_ms": 0.2761000068858266,
+      "function_evaluations": 4,
+      "modeled_physical_time": 0.0,
+      "eval_speedup_vs_50_step_diffusion": 12.5,
+      "eval_speedup_vs_100_step_diffusion": 25.0
+    },
+    {
+      "model": "classical_flow_mlp",
+      "flow_steps": 8,
+      "mmd2_to_reference": 0.05195397138595581,
+      "wall_ms": 0.5496999947354198,
+      "function_evaluations": 8,
+      "modeled_physical_time": 0.0,
+      "eval_speedup_vs_50_step_diffusion": 6.25,
+      "eval_speedup_vs_100_step_diffusion": 12.5
+    },
+    {
+      "model": "thermodynamic_flow",
+      "flow_steps": 1,
+      "mmd2_to_reference": 0.06200438737869263,
+      "wall_ms": 0.541800050996244,
+      "function_evaluations": 1,
+      "modeled_physical_time": 0.08,
+      "eval_speedup_vs_50_step_diffusion": 50.0,
+      "eval_speedup_vs_100_step_diffusion": 100.0
+    },
+    {
+      "model": "thermodynamic_flow",
+      "flow_steps": 2,
+      "mmd2_to_reference": 0.06352519989013672,
+      "wall_ms": 0.9420999558642507,
+      "function_evaluations": 2,
+      "modeled_physical_time": 0.16,
+      "eval_speedup_vs_50_step_diffusion": 25.0,
+      "eval_speedup_vs_100_step_diffusion": 50.0
+    },
+    {
+      "model": "thermodynamic_flow",
+      "flow_steps": 4,
+      "mmd2_to_reference": 0.06946682929992676,
+      "wall_ms": 1.8430000636726618,
+      "function_evaluations": 4,
+      "modeled_physical_time": 0.32,
+      "eval_speedup_vs_50_step_diffusion": 12.5,
+      "eval_speedup_vs_100_step_diffusion": 25.0
+    },
+    {
+      "model": "thermodynamic_flow",
+      "flow_steps": 8,
+      "mmd2_to_reference": 0.07607752084732056,
+      "wall_ms": 3.9365000557154417,
+      "function_evaluations": 8,
+      "modeled_physical_time": 0.64,
+      "eval_speedup_vs_50_step_diffusion": 6.25,
+      "eval_speedup_vs_100_step_diffusion": 12.5
+    }
+  ],
+  "best_by_model": {
+    "classical_flow_mlp": {
+      "model": "classical_flow_mlp",
+      "flow_steps": 8,
+      "mmd2_to_reference": 0.05195397138595581,
+      "wall_ms": 0.5496999947354198,
+      "function_evaluations": 8,
+      "modeled_physical_time": 0.0,
+      "eval_speedup_vs_50_step_diffusion": 6.25,
+      "eval_speedup_vs_100_step_diffusion": 12.5
+    },
+    "thermodynamic_flow": {
+      "model": "thermodynamic_flow",
+      "flow_steps": 1,
+      "mmd2_to_reference": 0.06200438737869263,
+      "wall_ms": 0.541800050996244,
+      "function_evaluations": 1,
+      "modeled_physical_time": 0.08,
+      "eval_speedup_vs_50_step_diffusion": 50.0,
+      "eval_speedup_vs_100_step_diffusion": 100.0
+    }
+  },
+  "claim_boundary": "Flow matching reduces neural evaluation count versus long iterative diffusion samplers. This toy CPU experiment is a lightweight feasibility check, not a production image/audio diffusion benchmark."
+}

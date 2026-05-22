@@ -3,8 +3,8 @@
 `thermocompute` is a PyTorch-first emulator for thermodynamic probabilistic
 computing. It provides software models of p-bits/PDITs, PMODE Gaussian
 samplers, PMOG mixture samplers, generic `torch.distributions` probability
-families, low-precision quantization-aware FFNs, and fixed-observation-time
-thermodynamic neuron layers.
+families, low-precision quantization-aware FFNs, flow-matching generative
+models, and fixed-observation-time thermodynamic neuron layers.
 
 **The punchline:** `thermocompute` lets us study neural layers where width can
 behave more like parallel fabric than sequential latency. Today, that matters
@@ -109,6 +109,7 @@ classical dense FFN width. That makes the package useful for:
 - uncertainty-aware transformer blocks
 - synthetic sequence modeling
 - energy-based or diffusion-like latent transformations
+- flow-matching generative sampling with fewer neural evaluations
 - fast ablations before thermodynamic hardware exists
 
 The default engineering path is **no replica**:
@@ -334,6 +335,8 @@ thermocompute/
   distributions.py  generic torch.distributions wrappers and adapters
   neurons.py        fixed-time thermodynamic neuron layers and MLPs
   transformer.py    thermodynamic transformer attention and FFN blocks
+  flow_matching.py  conditional flow matching and thermodynamic velocity fields
+  precision.py      low-precision quantization-aware FFN support
   integration.py    production-shaped FFN/block wrappers and replacement helper
   training.py       cold/PT end-to-end and readout training helpers
   experiments.py    smoke checks, proof-of-concept checks, scaling studies
@@ -349,6 +352,9 @@ scripts/
   run_tests.py
   run_smoke.py
   run_poc.py
+  run_flow_matching_experiment.py
+  run_precision_experiments.py
+  run_precision_training_comparison.py
   run_experiments.py
 tests/
   test_smoke.py
@@ -623,6 +629,81 @@ The current tiny CPU comparison shows fp16/bf16/fp8/int8/int4 training tracking
 standard fp32 closely on final eval loss, while int2 and binary remain usable
 but less accurate. Treat this as a smoke-scale feasibility result, not a
 claim of production low-bit training superiority.
+
+Current checked-in precision comparison:
+
+| Method | Mean Final Eval Loss | Ratio vs fp32 |
+|---|---:|---:|
+| standard fp32 | 0.201735 | 1.0000 |
+| mixed autocast bf16 | 0.201726 | 0.99995 |
+| mixed autocast fp16 | 0.201736 | 1.00000 |
+| quantized fp16 | 0.201735 | 1.00000 |
+| quantized bf16 | 0.201711 | 0.99988 |
+| quantized fp8 e4m3fn | 0.201785 | 1.00024 |
+| quantized fp8 e5m2 | 0.202106 | 1.00184 |
+| quantized int8 | 0.201762 | 1.00013 |
+| quantized int4 | 0.200814 | 0.99543 |
+| quantized int2 | 0.215432 | 1.06789 |
+| quantized binary | 0.204009 | 1.01127 |
+
+This table is from `artifacts/precision_training_comparison.json`.
+
+### Flow-Matching Diffusion
+
+Flow matching is a natural generative interface for `thermocompute`: train a
+velocity field that transports simple Gaussian noise into a target
+distribution, then sample by integrating a probability-flow ODE. Compared with
+long iterative diffusion samplers, the immediate speed lever is fewer neural
+function evaluations:
+
+```text
+speedup proxy ~= diffusion_steps / flow_steps
+```
+
+`thermocompute` includes a classical time-conditioned flow MLP and a
+thermodynamic flow velocity model:
+
+```python
+from thermocompute import (
+    FlowVelocityMLP,
+    ThermodynamicFlowVelocity,
+    ThermodynamicNeuronConfig,
+    fit_flow_matching,
+    make_mog2d,
+    sample_flow,
+)
+
+data = make_mog2d(384)
+
+model = ThermodynamicFlowVelocity(
+    data_dim=2,
+    embed_dim=16,
+    thermo_hidden_dim=48,
+    neuron_config=ThermodynamicNeuronConfig(t_f=0.08, dt=0.04, temperature=0.0),
+    memory_efficient_chunk_size=16,
+)
+
+fit = fit_flow_matching(model, data, n_steps=96, batch_size=64)
+samples = sample_flow(model, 128, n_flow_steps=4)
+```
+
+Run the lightweight CPU experiment:
+
+```powershell
+python scripts/run_flow_matching_experiment.py --device cpu --train-steps 96 --sample-count 128 --outdir artifacts
+```
+
+Current checked-in flow result on an eight-mode 2D Gaussian mixture:
+
+| Model | Best Flow Steps | MMD² To Reference | Wall ms | Eval Speedup vs 50-Step Diffusion |
+|---|---:|---:|---:|---:|
+| classical flow MLP | 8 | 0.051954 | 0.550 | 6.25x |
+| thermodynamic flow | 1 | 0.062004 | 0.542 | 50.0x |
+
+The thermodynamic one-step result is the interesting research signal: it is not
+as accurate as the best 8-step classical flow in this tiny run, but it reaches
+a comparable distribution score with a single velocity evaluation. This is a
+toy CPU feasibility check, not a production diffusion benchmark.
 
 ### BinaryPBit
 
@@ -1374,6 +1455,7 @@ python scripts/run_smoke.py
 python scripts/run_poc.py
 python scripts/run_precision_experiments.py --device cpu --outdir artifacts
 python scripts/run_precision_training_comparison.py --device cpu --steps 20 --repeats 3 --outdir artifacts
+python scripts/run_flow_matching_experiment.py --device cpu --train-steps 96 --sample-count 128 --outdir artifacts
 python scripts/run_experiments.py --outdir artifacts
 python scripts/run_benchmarks.py --outdir artifacts
 ```

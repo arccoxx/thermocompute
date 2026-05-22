@@ -13,6 +13,7 @@ before presenting it publicly.
 - Custom distribution adapter for user-provided distribution objects.
 - First-order FFN memory estimators for classical and thermodynamic layers.
 - Quantization-aware thermodynamic FFN path for fp16/bf16/fp8/int8/int4/int2/binary experiments.
+- CPU-light flow matching module with classical and thermodynamic velocity fields.
 - Bounded stress script for chunked no-replica inference, cold training,
   distribution families, low-precision formats, and memory-law estimates.
 
@@ -25,6 +26,8 @@ before presenting it publicly.
 - Low-precision training uses master floating-point parameters plus
   straight-through quantized forward passes, which keeps small experiments
   portable across CPU and GPU.
+- Flow matching has a reproducible toy experiment that reports sampling steps,
+  MMD, wall time, and diffusion-step speedup proxies.
 - Modeled physical time is separated from PyTorch wall time in benchmark
   artifacts.
 - Claim boundaries are explicit: GPU wall-clock plateau is empirical; modeled
@@ -42,6 +45,8 @@ before presenting it publicly.
   improvement.
 - Low-precision support is quantization-aware emulation. It is not a native
   packed int4 CUDA kernel path yet.
+- Flow matching is currently a toy 2D feasibility path, not a production
+  diffusion replacement.
 - Distribution support covers any distribution available through
   `torch.distributions` plus custom adapters. It does not implement every named
   distribution ever described in probability theory from scratch.

@@ -9,11 +9,13 @@ from thermocompute import (
     DistributionAdapter,
     DistributionSampler,
     DistributionSpec,
+    FlowVelocityMLP,
     PhysicalTimeReport,
     PMODE,
     PMOG,
     QuantizationConfig,
     QuantizedThermodynamicFFN,
+    ThermodynamicFlowVelocity,
     ThermodynamicFFN,
     ThermodynamicMLP,
     ThermodynamicNeuronConfig,
@@ -29,11 +31,16 @@ from thermocompute import (
     available_distributions,
     available_numeric_formats,
     estimate_quantized_thermo_ffn_memory,
+    fit_flow_matching,
     fit_quantized_ffn_mse,
+    flow_speedup_vs_diffusion,
+    make_mog2d,
     numeric_format_bits,
     make_distribution,
     quantize_tensor,
     quantized_storage_nbytes,
+    rbf_mmd2,
+    sample_flow,
     sample_distribution,
     replace_ffn,
     run_superiority_demo,
@@ -294,6 +301,33 @@ def test_quantized_thermodynamic_ffn_training_and_memory() -> None:
     assert estimate.parameter_bits == 1024 * (4 + 4 + 4) * 4
 
 
+def test_flow_matching_tiny_cpu() -> None:
+    torch.manual_seed(321)
+    generator = torch.Generator().manual_seed(321)
+    data = make_mog2d(64, generator=generator)
+    model = FlowVelocityMLP(2, hidden_dim=16, time_features=4)
+    result = fit_flow_matching(model, data, n_steps=20, batch_size=16, learning_rate=3e-3, generator=generator)
+    assert result.final_loss < result.initial_loss
+
+    samples = sample_flow(model, 16, n_flow_steps=2, generator=generator)
+    assert samples.samples.shape == (16, 2)
+    assert samples.function_evaluations == 2
+    assert flow_speedup_vs_diffusion(50, 2) == 25.0
+    assert torch.isfinite(rbf_mmd2(samples.samples, data[:16]))
+
+    thermo = ThermodynamicFlowVelocity(
+        2,
+        embed_dim=8,
+        thermo_hidden_dim=12,
+        time_features=4,
+        neuron_config=ThermodynamicNeuronConfig(t_f=0.04, dt=0.04, temperature=0.0),
+        memory_efficient_chunk_size=6,
+    )
+    velocity = thermo(data[:4], torch.zeros(4, 1))
+    assert velocity.shape == (4, 2)
+    assert thermo.physical_time == 0.04
+
+
 def test_integration_block_reports_tempering_swaps() -> None:
     config = ThermodynamicTransformerConfig(
         embed_dim=8,
@@ -465,18 +499,24 @@ def test_public_imports() -> None:
         "fit_transformer_end_to_end_cold",
         "fit_transformer_end_to_end_parallel_tempering",
         "DistributionSampler",
+        "FlowVelocityMLP",
         "QuantizationConfig",
         "QuantizedThermodynamicFFN",
+        "ThermodynamicFlowVelocity",
         "available_distributions",
         "available_numeric_formats",
         "estimate_classical_ffn_memory",
         "estimate_quantized_thermo_ffn_memory",
         "estimate_thermo_ffn_memory",
+        "fit_flow_matching",
         "fit_quantized_ffn_mse",
+        "flow_speedup_vs_diffusion",
+        "make_mog2d",
         "make_distribution",
         "numeric_format_bits",
         "quantize_tensor",
         "quantized_storage_nbytes",
+        "sample_flow",
         "sample_distribution",
         "run_superiority_demo",
         "__version__",

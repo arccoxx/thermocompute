@@ -15,6 +15,7 @@ from thermocompute import (
     DeviceConfig,
     DistributionAdapter,
     DistributionSampler,
+    FlowVelocityMLP,
     QuantizationConfig,
     QuantizedThermodynamicFFN,
     ThermodynamicFFN,
@@ -24,7 +25,10 @@ from thermocompute import (
     estimate_quantized_thermo_ffn_memory,
     estimate_thermo_ffn_memory,
     fit_quantized_ffn_mse,
+    fit_flow_matching,
+    make_mog2d,
     quantize_tensor,
+    sample_flow,
     fit_transformer_end_to_end_cold,
     set_seed,
 )
@@ -42,6 +46,7 @@ def main() -> int:
     _stress_memory_laws(metrics)
     _stress_distributions(metrics, device, dtype)
     _stress_low_precision(metrics)
+    _stress_flow_matching(metrics)
     _stress_invalid_chunk_sizes(metrics)
 
     print(json.dumps({"name": "stress_checks", "metrics": metrics}, indent=2))
@@ -211,6 +216,21 @@ def _stress_invalid_chunk_sizes(metrics: dict[str, object]) -> None:
     if failures != 3:
         raise AssertionError(f"expected 3 invalid chunk failures, got {failures}")
     metrics["invalid_chunk_checks"] = failures
+
+
+def _stress_flow_matching(metrics: dict[str, object]) -> None:
+    generator = torch.Generator().manual_seed(5150)
+    data = make_mog2d(64, generator=generator)
+    model = FlowVelocityMLP(2, hidden_dim=16, time_features=4)
+    fit = fit_flow_matching(model, data, n_steps=12, batch_size=16, learning_rate=3e-3, generator=generator)
+    samples = sample_flow(model, 16, n_flow_steps=2, generator=generator, device=torch.device("cpu"))
+    if fit.final_loss >= fit.initial_loss:
+        raise AssertionError("flow matching stress training did not reduce fixed-batch loss")
+    if not torch.isfinite(samples.samples).all():
+        raise AssertionError("flow matching stress sampling produced non-finite samples")
+    metrics["flow_matching_initial_loss"] = fit.initial_loss
+    metrics["flow_matching_final_loss"] = fit.final_loss
+    metrics["flow_matching_sample_steps"] = samples.n_flow_steps
 
 
 def _stress_low_precision(metrics: dict[str, object]) -> None:
