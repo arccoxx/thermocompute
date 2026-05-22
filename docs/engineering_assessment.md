@@ -19,9 +19,11 @@ before presenting it publicly.
 - Fast readout ridge trainers for thermodynamic flow matching and CNNs, plus
   explicit no-ridge end-to-end aliases for both paths.
 - CPU-light readout-vs-end-to-end comparison artifact for flow and CNN models.
+- Gaussian-process module with exact small-data GP regression, random-feature
+  GP layers, ridge readout fitting, and a CPU-light experiment artifact.
 - Bounded stress script for chunked no-replica inference, cold training,
-  distribution families, low-precision formats, CNN coverage, flow matching,
-  readout ridge checks, and memory-law estimates.
+  distribution families, Gaussian processes, low-precision formats, CNN
+  coverage, flow matching, readout ridge checks, and memory-law estimates.
 
 ## Strong Current Components
 
@@ -37,6 +39,8 @@ before presenting it publicly.
 - Fast readout training now exists outside the transformer path: flow matching
   solves the velocity readout, and CNNs solve from pooled thermodynamic hidden
   channels.
+- Gaussian-process support gives a clean probabilistic reference path and a
+  scalable random-feature layer path.
 - Modeled physical time is separated from PyTorch wall time in benchmark
   artifacts.
 - Claim boundaries are explicit: GPU wall-clock plateau is empirical; modeled
@@ -60,6 +64,8 @@ before presenting it publicly.
   diffusion replacement.
 - CNN support is currently a toy 8x8 coverage path, not a production
   computer-vision benchmark.
+- Exact Gaussian-process inference is cubic in training set size; the
+  random-feature GP layer is scalable but approximate.
 - Distribution support covers any distribution available through
   `torch.distributions` plus custom adapters. It does not implement every named
   distribution ever described in probability theory from scratch.

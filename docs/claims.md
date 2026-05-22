@@ -6,6 +6,7 @@
 - Generic distribution support covers any distribution available through `torch.distributions`, plus custom user-provided distribution adapters.
 - Flow matching support can train and sample tiny probability-flow ODE models, including a thermodynamic velocity field.
 - CNN support can train a tiny local-feature classifier with a thermodynamic convolutional hidden channel fabric.
+- Gaussian-process support includes exact small-data posterior inference and scalable random-feature GP layers with fast ridge readout fitting.
 - Flow and CNN support now include both fast readout ridge training and no-ridge end-to-end training.
 - Low-precision support provides quantization-aware thermodynamic FFN inference and small training experiments for fp16/bf16/fp8/int8/int4/int2/binary formats.
 - The small precision-training comparison shows several low-precision thermodynamic FFN modes can train to fp32-like loss on a tiny deterministic task.
@@ -49,6 +50,7 @@
 - It does not prove low-precision thermodynamic training beats mixed precision or fp32 training at production scale.
 - It does not prove thermodynamic flow matching beats production diffusion models; current flow results are toy CPU feasibility checks.
 - It does not prove thermodynamic CNNs beat production cuDNN-style convolution kernels; current CNN results are toy CPU coverage checks.
+- It does not prove production Gaussian-process scalability; exact GP inference is cubic in training points, while random-feature GP layers are approximations.
 - It does not reimplement every named distribution in probability theory from scratch; it delegates broad distribution coverage to PyTorch's distribution library.
 
 ## Current Best Claims

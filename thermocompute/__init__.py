@@ -46,6 +46,18 @@ from .flow_matching import (
     sample_flow,
     time_embedding,
 )
+from .gaussian_process import (
+    ExactGaussianProcessRegressor,
+    GPReadoutFitResult,
+    GaussianProcessFitResult,
+    GaussianProcessPrediction,
+    RandomFeatureGaussianProcessLayer,
+    RBFKernelConfig,
+    fit_gp_readout_ridge,
+    gp_regression_rmse,
+    make_gp_regression_data,
+    rbf_kernel,
+)
 from .integration import ThermodynamicFFN, ThermodynamicTransformerBlock, replace_ffn
 from .metrics import ExperimentResult, moment_summary, physical_advantage_ratio
 from .memory import (
@@ -112,6 +124,9 @@ __all__ = [
     "FlowReadoutFitResult",
     "FlowSampleResult",
     "FlowVelocityMLP",
+    "GPReadoutFitResult",
+    "GaussianProcessFitResult",
+    "GaussianProcessPrediction",
     "IsingEnergy",
     "PhysicalTimeReport",
     "PMODE",
@@ -121,6 +136,8 @@ __all__ = [
     "QuantizedFFNMemoryEstimate",
     "QuantizedFitResult",
     "QuantizedThermodynamicFFN",
+    "RandomFeatureGaussianProcessLayer",
+    "RBFKernelConfig",
     "ThermodynamicMLP",
     "ThermodynamicCNNClassifier",
     "ThermodynamicConv2d",
@@ -148,6 +165,7 @@ __all__ = [
     "fit_flow_matching",
     "fit_flow_matching_end_to_end",
     "fit_flow_matching_readout_ridge",
+    "fit_gp_readout_ridge",
     "flow_matching_loss",
     "flow_matching_pair_loss",
     "flow_speedup_vs_diffusion",
@@ -160,7 +178,9 @@ __all__ = [
     "estimate_thermo_ffn_memory",
     "fit_quantized_ffn_mse",
     "get_numeric_format",
+    "gp_regression_rmse",
     "make_distribution",
+    "make_gp_regression_data",
     "make_mog2d",
     "make_toy_cnn_data",
     "moment_summary",
@@ -171,9 +191,11 @@ __all__ = [
     "quantized_storage_nbytes",
     "replace_ffn",
     "rbf_mmd2",
+    "rbf_kernel",
     "run_superiority_demo",
     "sample_distribution",
     "sample_flow",
     "set_seed",
     "time_embedding",
+    "ExactGaussianProcessRegressor",
 ]

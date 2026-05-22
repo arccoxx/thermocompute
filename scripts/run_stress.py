@@ -15,7 +15,10 @@ from thermocompute import (
     DeviceConfig,
     DistributionAdapter,
     DistributionSampler,
+    ExactGaussianProcessRegressor,
     FlowVelocityMLP,
+    RandomFeatureGaussianProcessLayer,
+    RBFKernelConfig,
     QuantizationConfig,
     QuantizedThermodynamicFFN,
     ThermodynamicCNNClassifier,
@@ -32,6 +35,9 @@ from thermocompute import (
     fit_quantized_ffn_mse,
     fit_flow_matching,
     fit_flow_matching_readout_ridge,
+    fit_gp_readout_ridge,
+    gp_regression_rmse,
+    make_gp_regression_data,
     make_toy_cnn_data,
     make_mog2d,
     quantize_tensor,
@@ -52,6 +58,7 @@ def main() -> int:
     _stress_chunked_cold_training(metrics, device, dtype)
     _stress_memory_laws(metrics)
     _stress_distributions(metrics, device, dtype)
+    _stress_gaussian_processes(metrics)
     _stress_low_precision(metrics)
     _stress_flow_matching(metrics)
     _stress_cnn(metrics)
@@ -204,6 +211,35 @@ def _stress_distributions(metrics: dict[str, object], device: torch.device, dtyp
         raise AssertionError("custom distribution adapter returned wrong shape")
     metrics["distribution_families_checked"] = checked
     metrics["distribution_adapter_checked"] = True
+
+
+def _stress_gaussian_processes(metrics: dict[str, object]) -> None:
+    generator = torch.Generator().manual_seed(7171)
+    train_x, train_y = make_gp_regression_data(24, noise=0.04, generator=generator)
+    test_x, test_y = make_gp_regression_data(40, noise=0.0, generator=generator)
+    kernel = RBFKernelConfig(lengthscale=0.8, output_scale=1.0)
+
+    exact = ExactGaussianProcessRegressor(kernel=kernel, noise=0.04**2)
+    exact_fit = exact.fit(train_x, train_y)
+    exact_pred = exact.predict(test_x)
+    exact_rmse = gp_regression_rmse(exact_pred.mean, test_y)
+    if exact_rmse >= 0.15:
+        raise AssertionError(f"exact GP stress RMSE too high: {exact_rmse}")
+    samples = exact.sample_posterior(test_x[:5], n_samples=2, generator=generator)
+    if samples.shape != (2, 5, 1) or not torch.isfinite(samples).all():
+        raise AssertionError("exact GP posterior sampling failed")
+
+    layer = RandomFeatureGaussianProcessLayer(1, 1, n_random_features=64, kernel=kernel)
+    before = gp_regression_rmse(layer(test_x), test_y)
+    fit = fit_gp_readout_ridge(layer, train_x, train_y, ridge=1e-3)
+    after = gp_regression_rmse(layer(test_x), test_y)
+    if fit.final_mse >= fit.initial_mse or after >= before:
+        raise AssertionError("random-feature GP ridge stress fit did not improve")
+    metrics["exact_gp_nll"] = exact_fit.negative_log_marginal_likelihood
+    metrics["exact_gp_rmse"] = exact_rmse
+    metrics["rff_gp_initial_rmse"] = before
+    metrics["rff_gp_final_rmse"] = after
+    metrics["rff_gp_ridge_wall_ms"] = fit.fit_wall_ms
 
 
 def _stress_invalid_chunk_sizes(metrics: dict[str, object]) -> None:

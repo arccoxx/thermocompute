@@ -1,0 +1,40 @@
+{
+  "name": "gaussian_process_experiment",
+  "device": "cpu",
+  "task": "1D nonlinear regression",
+  "train_samples": 32,
+  "test_samples": 96,
+  "models": {
+    "exact_gp": {
+      "method": "exact_gp_regression",
+      "n_train": 32,
+      "input_dim": 1,
+      "target_dim": 1,
+      "negative_log_marginal_likelihood": -18.75149917602539,
+      "fit_wall_ms": 11.673000059090555,
+      "test_rmse": 0.02481888420879841,
+      "predict_wall_ms": 1.2265000259503722,
+      "posterior_sample_shape": [
+        3,
+        12,
+        1
+      ],
+      "mean_variance": 0.0006001318688504398
+    },
+    "random_feature_gp_layer": {
+      "method": "gp_random_feature_readout_ridge",
+      "ridge": 0.001,
+      "initial_mse": 0.6573335528373718,
+      "final_mse": 0.003585913684219122,
+      "fit_wall_ms": 0.609199982136488,
+      "n_examples": 32,
+      "feature_dim": 128,
+      "target_dim": 1,
+      "initial_test_rmse": 0.8166359066963196,
+      "test_rmse": 0.05360281094908714,
+      "predict_wall_ms": 0.052699935622513294,
+      "n_random_features": 128
+    }
+  },
+  "claim_boundary": "Exact GP support is small-data reference inference. Random-feature GP support is a scalable layer-style approximation with fast ridge readout fitting. This is CPU-light emulation, not a production GP benchmark."
+}

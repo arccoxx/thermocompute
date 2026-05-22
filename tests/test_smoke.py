@@ -9,7 +9,10 @@ from thermocompute import (
     DistributionAdapter,
     DistributionSampler,
     DistributionSpec,
+    ExactGaussianProcessRegressor,
     FlowVelocityMLP,
+    RandomFeatureGaussianProcessLayer,
+    RBFKernelConfig,
     ThermodynamicCNNClassifier,
     ThermodynamicConv2d,
     PhysicalTimeReport,
@@ -36,18 +39,22 @@ from thermocompute import (
     fit_flow_matching,
     fit_flow_matching_end_to_end,
     fit_flow_matching_readout_ridge,
+    fit_gp_readout_ridge,
     fit_cnn_classifier,
     fit_cnn_classifier_end_to_end,
     fit_cnn_readout_ridge,
     fit_quantized_ffn_mse,
     flow_speedup_vs_diffusion,
+    gp_regression_rmse,
     make_mog2d,
+    make_gp_regression_data,
     numeric_format_bits,
     make_toy_cnn_data,
     make_distribution,
     quantize_tensor,
     quantized_storage_nbytes,
     rbf_mmd2,
+    rbf_kernel,
     sample_flow,
     sample_distribution,
     replace_ffn,
@@ -254,6 +261,56 @@ def test_generic_distribution_support() -> None:
     adapted = adapter.sample(6)
     assert adapted.shape == (6, 2)
     assert torch.isfinite(adapter.log_prob(adapted)).all()
+
+
+def test_exact_gaussian_process_regressor_cpu() -> None:
+    torch.manual_seed(551)
+    generator = torch.Generator().manual_seed(551)
+    train_x, train_y = make_gp_regression_data(24, noise=0.03, generator=generator)
+    test_x, test_y = make_gp_regression_data(32, noise=0.0, generator=generator)
+    gp = ExactGaussianProcessRegressor(kernel=RBFKernelConfig(lengthscale=0.8, output_scale=1.0), noise=0.03**2)
+    fit = gp.fit(train_x, train_y)
+    pred = gp.predict(test_x)
+    samples = gp.sample_posterior(test_x[:5], n_samples=2, generator=generator)
+    assert fit.n_train == 24
+    assert pred.mean.shape == test_y.shape
+    assert pred.covariance.shape == (32, 32)
+    assert samples.shape == (2, 5, 1)
+    assert torch.isfinite(pred.mean).all()
+    assert torch.all(pred.variance >= 0.0)
+    assert gp_regression_rmse(pred.mean, test_y) < 0.12
+
+    gp_copy = ExactGaussianProcessRegressor(kernel=RBFKernelConfig(lengthscale=0.8, output_scale=1.0), noise=0.03**2)
+    gp_copy.load_state_dict(gp.state_dict())
+    assert torch.allclose(gp(test_x), gp_copy(test_x), atol=1e-6)
+
+    kernel = rbf_kernel(train_x, train_x, lengthscale=0.8, output_scale=1.0)
+    assert torch.allclose(kernel, kernel.T, atol=1e-6)
+
+
+def test_random_feature_gaussian_process_layer_ridge_cpu() -> None:
+    torch.manual_seed(552)
+    generator = torch.Generator().manual_seed(552)
+    train_x, train_y = make_gp_regression_data(32, noise=0.03, generator=generator)
+    test_x, test_y = make_gp_regression_data(48, noise=0.0, generator=generator)
+    layer = RandomFeatureGaussianProcessLayer(
+        1,
+        1,
+        n_random_features=64,
+        kernel=RBFKernelConfig(lengthscale=0.8, output_scale=1.0),
+    )
+    before = gp_regression_rmse(layer(test_x), test_y)
+    fit = fit_gp_readout_ridge(layer, train_x, train_y, ridge=1e-3)
+    after = gp_regression_rmse(layer(test_x), test_y)
+    prior = layer.sample_prior(test_x[:6], n_samples=3, generator=generator)
+    assert fit.final_mse < fit.initial_mse
+    assert after < before
+    assert prior.shape == (3, 6, 1)
+    assert layer(test_x, return_features=True)[1].shape == (48, 64)
+
+    clone = RandomFeatureGaussianProcessLayer(1, 1, n_random_features=64, kernel=RBFKernelConfig(lengthscale=0.8))
+    clone.load_state_dict(layer.state_dict())
+    assert torch.allclose(layer(test_x), clone(test_x), atol=1e-6)
 
 
 def test_quantized_numeric_formats_and_ste_gradients() -> None:
@@ -599,6 +656,9 @@ def test_public_imports() -> None:
         "ThermodynamicTransformerLayer",
         "ThermodynamicFFN",
         "ThermodynamicTransformerBlock",
+        "ExactGaussianProcessRegressor",
+        "RandomFeatureGaussianProcessLayer",
+        "RBFKernelConfig",
         "fit_transformer_end_to_end_cold",
         "fit_transformer_end_to_end_parallel_tempering",
         "DistributionSampler",
@@ -619,15 +679,19 @@ def test_public_imports() -> None:
         "fit_flow_matching",
         "fit_flow_matching_end_to_end",
         "fit_flow_matching_readout_ridge",
+        "fit_gp_readout_ridge",
         "fit_quantized_ffn_mse",
         "flow_speedup_vs_diffusion",
+        "gp_regression_rmse",
         "make_toy_cnn_data",
+        "make_gp_regression_data",
         "make_mog2d",
         "make_distribution",
         "numeric_format_bits",
         "quantize_tensor",
         "quantized_storage_nbytes",
         "sample_flow",
+        "rbf_kernel",
         "sample_distribution",
         "run_superiority_demo",
         "__version__",

@@ -4,8 +4,8 @@
 computing. It provides software models of p-bits/PDITs, PMODE Gaussian
 samplers, PMOG mixture samplers, generic `torch.distributions` probability
 families, low-precision quantization-aware FFNs, flow-matching generative
-models, thermodynamic convolutional layers, and fixed-observation-time
-thermodynamic neuron layers.
+models, Gaussian-process layers, thermodynamic convolutional layers, and
+fixed-observation-time thermodynamic neuron layers.
 
 **The punchline:** `thermocompute` lets us study neural layers where width can
 behave more like parallel fabric than sequential latency. Today, that matters
@@ -102,6 +102,9 @@ that can be dropped into real experiments:
   channel fabric
 - `ThermodynamicCNNClassifier`: tiny classifier wrapper for lightweight CNN
   experiments
+- `ExactGaussianProcessRegressor`: exact small-data GP posterior inference
+- `RandomFeatureGaussianProcessLayer`: scalable GP-style layer with fast ridge
+  readout fitting
 - `ThermodynamicMLP`: fixed-time stochastic MLPs for non-sequence experiments
 
 The goal is not to beat every optimized dense kernel on every shape. The goal
@@ -113,6 +116,7 @@ classical dense FFN width. That makes the package useful for:
 - reservoir/readout experiments
 - uncertainty-aware transformer blocks
 - local image and feature-map experiments
+- Gaussian-process regression and random-feature Bayesian layers
 - synthetic sequence modeling
 - energy-based or diffusion-like latent transformations
 - flow-matching generative sampling with fewer neural evaluations
@@ -343,6 +347,7 @@ thermocompute/
   cnn.py            thermodynamic convolution layers and toy CNN classifier
   transformer.py    thermodynamic transformer attention and FFN blocks
   flow_matching.py  conditional flow matching and thermodynamic velocity fields
+  gaussian_process.py exact GP regression and random-feature GP layers
   precision.py      low-precision quantization-aware FFN support
   integration.py    production-shaped FFN/block wrappers and replacement helper
   training.py       cold/PT end-to-end and readout training helpers
@@ -361,6 +366,7 @@ scripts/
   run_poc.py
   run_flow_matching_experiment.py
   run_cnn_experiment.py
+  run_gaussian_process_experiment.py
   run_readout_training_comparison.py
   run_precision_experiments.py
   run_precision_training_comparison.py
@@ -813,6 +819,59 @@ For CNNs, ridge fitting switches the classifier to `readout_mode="thermo"` so
 the readout is solved directly from pooled thermodynamic hidden channels. To
 load that state dict later, instantiate the classifier with the same
 `readout_mode`.
+
+### Gaussian Processes
+
+Gaussian processes are now a supported probabilistic layer family. The exact
+path gives small-data posterior inference with mean, covariance, variance, and
+posterior samples. The scalable layer path uses random Fourier features as an
+RBF GP approximation and fits the readout with the same fast ridge-alignment
+idea used elsewhere in the package.
+
+```python
+from thermocompute import (
+    ExactGaussianProcessRegressor,
+    RandomFeatureGaussianProcessLayer,
+    RBFKernelConfig,
+    fit_gp_readout_ridge,
+    make_gp_regression_data,
+)
+
+train_x, train_y = make_gp_regression_data(32)
+test_x, _ = make_gp_regression_data(96, noise=0.0)
+
+exact = ExactGaussianProcessRegressor(
+    kernel=RBFKernelConfig(lengthscale=0.75, output_scale=1.0),
+    noise=0.04**2,
+)
+exact.fit(train_x, train_y)
+posterior = exact.predict(test_x)
+
+layer = RandomFeatureGaussianProcessLayer(
+    in_features=1,
+    out_features=1,
+    n_random_features=128,
+    kernel=RBFKernelConfig(lengthscale=0.75, output_scale=1.0),
+)
+fit_gp_readout_ridge(layer, train_x, train_y, ridge=1e-3)
+prediction = layer(test_x)
+```
+
+Run the CPU-light GP experiment:
+
+```powershell
+python scripts/run_gaussian_process_experiment.py --device cpu --train-samples 32 --test-samples 96 --random-features 128 --outdir artifacts
+```
+
+Current checked-in result:
+
+| Model | Test RMSE | Fit Wall ms | Predict Wall ms | Notes |
+|---|---:|---:|---:|---|
+| exact GP | 0.0248 | 11.67 | 1.23 | exact posterior covariance and samples |
+| random-feature GP layer | 0.0536 | 0.61 | 0.05 | fast ridge readout, scalable layer form |
+
+Exact GP inference is a reference path and scales cubically with training
+points. The random-feature GP layer is the scalable package path.
 
 ### BinaryPBit
 
@@ -1571,6 +1630,7 @@ python scripts/run_precision_experiments.py --device cpu --outdir artifacts
 python scripts/run_precision_training_comparison.py --device cpu --steps 20 --repeats 3 --outdir artifacts
 python scripts/run_flow_matching_experiment.py --device cpu --train-steps 96 --sample-count 128 --outdir artifacts
 python scripts/run_cnn_experiment.py --device cpu --train-steps 80 --outdir artifacts
+python scripts/run_gaussian_process_experiment.py --device cpu --train-samples 32 --test-samples 96 --random-features 128 --outdir artifacts
 python scripts/run_readout_training_comparison.py --device cpu --flow-steps 96 --cnn-steps 80 --outdir artifacts
 python scripts/run_experiments.py --outdir artifacts
 python scripts/run_benchmarks.py --outdir artifacts
