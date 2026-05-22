@@ -361,6 +361,7 @@ scripts/
   run_poc.py
   run_flow_matching_experiment.py
   run_cnn_experiment.py
+  run_readout_training_comparison.py
   run_precision_experiments.py
   run_precision_training_comparison.py
   run_experiments.py
@@ -676,7 +677,8 @@ from thermocompute import (
     FlowVelocityMLP,
     ThermodynamicFlowVelocity,
     ThermodynamicNeuronConfig,
-    fit_flow_matching,
+    fit_flow_matching_end_to_end,
+    fit_flow_matching_readout_ridge,
     make_mog2d,
     sample_flow,
 )
@@ -691,7 +693,7 @@ model = ThermodynamicFlowVelocity(
     memory_efficient_chunk_size=16,
 )
 
-fit = fit_flow_matching(model, data, n_steps=96, batch_size=64)
+fit = fit_flow_matching_readout_ridge(model, data, n_pairs=512, ridge=1e-2)
 samples = sample_flow(model, 128, n_flow_steps=4)
 ```
 
@@ -712,6 +714,13 @@ The thermodynamic one-step result is the interesting research signal: it is not
 as accurate as the best 8-step classical flow in this tiny run, but it reaches
 a comparable distribution score with a single velocity evaluation. This is a
 toy CPU feasibility check, not a production diffusion benchmark.
+
+Flow matching now has two explicit training modes:
+
+- `fit_flow_matching_readout_ridge`: freeze the thermodynamic feature fabric
+  and solve the velocity readout in one ridge system.
+- `fit_flow_matching_end_to_end`: ordinary no-ridge AdamW training through the
+  full model.
 
 ### Thermodynamic CNNs
 
@@ -766,6 +775,44 @@ differentiate, chunk, train, and serialize convolutional thermodynamic modules.
 It is not a production computer-vision benchmark. The important coverage point
 is that the fixed-time thermodynamic width idea is not restricted to
 transformers or MLPs; it also maps naturally to local receptive fields.
+
+### Fast Readout Training For Flow And CNNs
+
+The package now exposes the same training split for flow matching and CNNs:
+
+```text
+fast readout ridge       = freeze thermodynamic fabric, solve final readout
+end-to-end no ridge      = train the whole differentiable model with AdamW
+```
+
+Run the CPU-light comparison:
+
+```powershell
+python scripts/run_readout_training_comparison.py --device cpu --flow-steps 96 --cnn-steps 80 --outdir artifacts
+```
+
+Current checked-in result:
+
+| Task | Method | Final Metric | Fit Wall ms | Notes |
+|---|---|---:|---:|---|
+| flow matching | readout ridge | loss 2.6620, one-step MMD2 0.0522 | 2.51 | fast frozen thermodynamic velocity readout |
+| flow matching | end-to-end no ridge | loss 2.6482, one-step MMD2 0.0550 | 325.81 | slightly lower supervised loss, much slower CPU training |
+| CNN bars | readout ridge | accuracy 1.000, loss 0.6612 | 5.65 | direct ridge from pooled thermodynamic hidden channels |
+| CNN bars | end-to-end no ridge | accuracy 1.000, loss 0.0433 | 501.16 | much better confidence, much slower CPU training |
+
+The pattern is exactly what we should expect at this stage. Ridge readout
+training is dramatically faster because it avoids iterative backpropagation
+through the thermodynamic dynamics. End-to-end training can improve task
+metrics because it adapts the whole feature generator, but it pays normal
+software training costs. The research path is to use ridge/readout alignment
+wherever a large thermodynamic fabric already provides enough useful features,
+and reserve end-to-end training for cases where the feature fabric itself must
+move.
+
+For CNNs, ridge fitting switches the classifier to `readout_mode="thermo"` so
+the readout is solved directly from pooled thermodynamic hidden channels. To
+load that state dict later, instantiate the classifier with the same
+`readout_mode`.
 
 ### BinaryPBit
 
@@ -1524,6 +1571,7 @@ python scripts/run_precision_experiments.py --device cpu --outdir artifacts
 python scripts/run_precision_training_comparison.py --device cpu --steps 20 --repeats 3 --outdir artifacts
 python scripts/run_flow_matching_experiment.py --device cpu --train-steps 96 --sample-count 128 --outdir artifacts
 python scripts/run_cnn_experiment.py --device cpu --train-steps 80 --outdir artifacts
+python scripts/run_readout_training_comparison.py --device cpu --flow-steps 96 --cnn-steps 80 --outdir artifacts
 python scripts/run_experiments.py --outdir artifacts
 python scripts/run_benchmarks.py --outdir artifacts
 ```

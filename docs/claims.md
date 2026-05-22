@@ -6,6 +6,7 @@
 - Generic distribution support covers any distribution available through `torch.distributions`, plus custom user-provided distribution adapters.
 - Flow matching support can train and sample tiny probability-flow ODE models, including a thermodynamic velocity field.
 - CNN support can train a tiny local-feature classifier with a thermodynamic convolutional hidden channel fabric.
+- Flow and CNN support now include both fast readout ridge training and no-ridge end-to-end training.
 - Low-precision support provides quantization-aware thermodynamic FFN inference and small training experiments for fp16/bf16/fp8/int8/int4/int2/binary formats.
 - The small precision-training comparison shows several low-precision thermodynamic FFN modes can train to fp32-like loss on a tiny deterministic task.
 - Fixed-depth thermodynamic neuron and transformer feed-forward layers report constant modeled physical time as width increases.
@@ -13,6 +14,7 @@
 - Wider thermodynamic blocks can be evaluated under a constant physical-time model while classical FFN FLOP proxies grow with width.
 - The superiority demo makes the same comparison against a dense digital FFN work proxy and explicitly records state-of-the-art context: optimized attention kernels do not remove the width-dependent FFN term.
 - Training APIs exist for conventional cold training, parallel-tempered full-model training, readout alignment, and sparse readout mask search.
+- Readout ridge is dramatically faster than no-ridge end-to-end training in the tiny CPU flow/CNN comparison; end-to-end remains the more flexible path when the frozen feature fabric is not enough.
 - The default engineering path is no-replica inference/training (`n_replicas=1`, `tempering=False`). Parallel tempering is optional and should be justified by task-specific evidence.
 
 ## What The CUDA Benchmarks Suggest
@@ -39,6 +41,7 @@
 - It does not prove PyTorch emulator wall time is faster than optimized production kernels such as FlashAttention-class attention kernels.
 - It does not prove training is constant time.
 - It does not prove training is faster than state-of-the-art transformer training.
+- It does not prove readout ridge replaces end-to-end training for all tasks; it is a fast frozen-feature method that depends on the thermodynamic feature fabric being expressive enough.
 - It does not prove real chip speedups or energy gains; there is no hardware backend yet.
 - It does not provide full production model support for every Hugging Face architecture.
 - It does not make the optional CUDA extension required or production-ready.

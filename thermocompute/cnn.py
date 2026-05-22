@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import time
-from typing import Any
+from typing import Any, Literal
 
 import torch
 from torch import Tensor, nn
@@ -23,6 +23,23 @@ class CNNFitResult:
     final_accuracy: float
     n_steps: int
     fit_wall_ms: float
+
+
+@dataclass(frozen=True)
+class CNNReadoutFitResult:
+    """Closed-form classifier readout fitting summary for thermodynamic CNNs."""
+
+    method: str
+    ridge: float
+    initial_loss: float
+    final_loss: float
+    initial_accuracy: float
+    final_accuracy: float
+    fit_wall_ms: float
+    n_examples: int
+    feature_dim: int
+    n_classes: int
+    physical_time: float
 
 
 class ThermodynamicConv2d(nn.Module):
@@ -173,10 +190,13 @@ class ThermodynamicCNNClassifier(nn.Module):
         kernel_size: int = 3,
         neuron_config: ThermodynamicNeuronConfig | None = None,
         memory_efficient_chunk_size: int | None = None,
+        readout_mode: Literal["conv", "thermo"] = "conv",
     ) -> None:
         super().__init__()
         if n_classes <= 0:
             raise ValueError("n_classes must be positive")
+        if readout_mode not in {"conv", "thermo"}:
+            raise ValueError("readout_mode must be 'conv' or 'thermo'")
         self.conv = ThermodynamicConv2d(
             in_channels,
             conv_channels,
@@ -186,19 +206,65 @@ class ThermodynamicCNNClassifier(nn.Module):
             neuron_config=neuron_config or ThermodynamicNeuronConfig(t_f=0.08, dt=0.04, temperature=0.0),
             memory_efficient_chunk_size=memory_efficient_chunk_size,
         )
-        self.classifier = nn.Linear(conv_channels, n_classes)
+        self.readout_mode: Literal["conv", "thermo"] = readout_mode
+        classifier_in = self.conv.thermo_channels if readout_mode == "thermo" else conv_channels
+        self.classifier = nn.Linear(classifier_in, n_classes)
 
     @property
     def physical_time(self) -> float:
         return self.conv.physical_time
 
     def forward(self, x: Tensor, *, return_info: bool = False) -> Tensor | tuple[Tensor, ThermodynamicRunInfo]:
-        features, info = self.conv(x, return_info=True)
-        pooled = F.adaptive_avg_pool2d(torch.tanh(features), output_size=1).flatten(1)
+        if self.readout_mode == "thermo":
+            pooled, info = self.thermodynamic_readout_features(x, return_info=True)
+        else:
+            pooled, info = self.readout_features(x, return_info=True)
         logits = self.classifier(pooled)
         if return_info:
             return logits, info
         return logits
+
+    def readout_features(self, x: Tensor, *, return_info: bool = False) -> Tensor | tuple[Tensor, ThermodynamicRunInfo]:
+        """Return pooled thermodynamic CNN features before the classifier."""
+
+        features, info = self.conv(x, return_info=True)
+        pooled = F.adaptive_avg_pool2d(torch.tanh(features), output_size=1).flatten(1)
+        if return_info:
+            return pooled, info
+        return pooled
+
+    def thermodynamic_readout_features(
+        self,
+        x: Tensor,
+        *,
+        generator: torch.Generator | None = None,
+        return_info: bool = False,
+    ) -> Tensor | tuple[Tensor, ThermodynamicRunInfo]:
+        """Return pooled hidden thermodynamic channels before convolutional readout."""
+
+        effective_chunk = self.conv.memory_efficient_chunk_size
+        if effective_chunk is not None and effective_chunk < self.conv.thermo_channels:
+            chunks: list[Tensor] = []
+            infos: list[ThermodynamicRunInfo] = []
+            height = width = 0
+            for start in range(0, self.conv.thermo_channels, effective_chunk):
+                end = min(start + effective_chunk, self.conv.thermo_channels)
+                current = self.conv._conv_current(x, start, end)
+                height, width = int(current.shape[2]), int(current.shape[3])
+                hidden, info = self.conv._simulate_current_image(current, start, end, generator=generator)
+                pooled = torch.tanh(hidden).view(x.shape[0], height, width, end - start).mean(dim=(1, 2))
+                chunks.append(pooled)
+                infos.append(info)
+            features = torch.cat(chunks, dim=-1)
+            info = _aggregate_chunk_infos(infos)
+        else:
+            current = self.conv._conv_current(x, 0, self.conv.thermo_channels)
+            height, width = int(current.shape[2]), int(current.shape[3])
+            hidden, info = self.conv._simulate_current_image(current, 0, self.conv.thermo_channels, generator=generator)
+            features = torch.tanh(hidden).view(x.shape[0], height, width, self.conv.thermo_channels).mean(dim=(1, 2))
+        if return_info:
+            return features, info
+        return features
 
 
 def make_toy_cnn_data(
@@ -270,6 +336,91 @@ def fit_cnn_classifier(
     )
 
 
+def fit_cnn_classifier_end_to_end(
+    model: nn.Module,
+    train_x: Tensor,
+    train_y: Tensor,
+    *,
+    eval_x: Tensor | None = None,
+    eval_y: Tensor | None = None,
+    n_steps: int = 64,
+    learning_rate: float = 3e-3,
+) -> CNNFitResult:
+    """Alias for no-ridge inductive CNN training."""
+
+    return fit_cnn_classifier(
+        model,
+        train_x,
+        train_y,
+        eval_x=eval_x,
+        eval_y=eval_y,
+        n_steps=n_steps,
+        learning_rate=learning_rate,
+    )
+
+
+@torch.no_grad()
+def fit_cnn_readout_ridge(
+    model: ThermodynamicCNNClassifier,
+    train_x: Tensor,
+    train_y: Tensor,
+    *,
+    eval_x: Tensor | None = None,
+    eval_y: Tensor | None = None,
+    ridge: float = 1e-3,
+) -> CNNReadoutFitResult:
+    """Fit only the CNN classifier readout with one ridge solve.
+
+    The thermodynamic convolution is treated as a frozen local feature fabric.
+    Labels are solved as one-hot regression targets, then evaluated as logits
+    with the usual cross-entropy and accuracy metrics.
+    """
+
+    if not isinstance(model, ThermodynamicCNNClassifier):
+        raise TypeError("fit_cnn_readout_ridge requires ThermodynamicCNNClassifier")
+    if ridge < 0.0:
+        raise ValueError("ridge must be non-negative")
+    eval_x = train_x if eval_x is None else eval_x
+    eval_y = train_y if eval_y is None else eval_y
+    was_training = model.training
+    model.eval()
+    feature_dim = model.conv.thermo_channels
+    if model.classifier.in_features != feature_dim:
+        dtype = next(model.parameters()).dtype
+        model.classifier = nn.Linear(feature_dim, model.classifier.out_features).to(device=train_x.device, dtype=dtype)
+    model.readout_mode = "thermo"
+    initial_logits = model(eval_x)
+    initial_loss = float(F.cross_entropy(_as_logits(initial_logits), eval_y).detach().cpu())
+    initial_accuracy = accuracy(_as_logits(initial_logits), eval_y)
+
+    start = time.perf_counter()
+    features = _as_features(model.thermodynamic_readout_features(train_x))
+    targets = F.one_hot(train_y, num_classes=model.classifier.out_features).to(device=features.device, dtype=features.dtype)
+    solution = _ridge_solve(_with_bias(features), targets, ridge)
+    model.classifier.weight.copy_(solution[:-1].T.contiguous())
+    model.classifier.bias.copy_(solution[-1].contiguous())
+    fit_wall_ms = (time.perf_counter() - start) * 1000.0
+
+    final_logits = model(eval_x)
+    final_loss = float(F.cross_entropy(_as_logits(final_logits), eval_y).detach().cpu())
+    final_accuracy = accuracy(_as_logits(final_logits), eval_y)
+    if was_training:
+        model.train()
+    return CNNReadoutFitResult(
+        method="cnn_readout_ridge",
+        ridge=float(ridge),
+        initial_loss=initial_loss,
+        final_loss=final_loss,
+        initial_accuracy=initial_accuracy,
+        final_accuracy=final_accuracy,
+        fit_wall_ms=float(fit_wall_ms),
+        n_examples=int(features.shape[0]),
+        feature_dim=int(features.shape[-1]),
+        n_classes=int(model.classifier.out_features),
+        physical_time=float(model.physical_time),
+    )
+
+
 def accuracy(logits: Tensor, labels: Tensor) -> float:
     return float((logits.argmax(dim=-1) == labels).float().mean().detach().cpu())
 
@@ -284,3 +435,20 @@ def _pair(value: int | tuple[int, int]) -> tuple[int, int]:
 
 def _as_logits(output: Any) -> Tensor:
     return output[0] if isinstance(output, tuple) else output
+
+
+def _as_features(output: Any) -> Tensor:
+    return output[0] if isinstance(output, tuple) else output
+
+
+def _with_bias(features: Tensor) -> Tensor:
+    ones = torch.ones(features.shape[0], 1, device=features.device, dtype=features.dtype)
+    return torch.cat([features, ones], dim=-1)
+
+
+def _ridge_solve(design: Tensor, targets: Tensor, ridge: float) -> Tensor:
+    gram = design.T @ design
+    reg = torch.eye(gram.shape[0], device=gram.device, dtype=gram.dtype) * float(ridge)
+    reg[-1, -1] = 0.0
+    rhs = design.T @ targets
+    return torch.linalg.solve(gram + reg, rhs)

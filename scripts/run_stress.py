@@ -21,14 +21,17 @@ from thermocompute import (
     ThermodynamicCNNClassifier,
     ThermodynamicConv2d,
     ThermodynamicFFN,
+    ThermodynamicFlowVelocity,
     ThermodynamicNeuronConfig,
     ThermodynamicTransformerLayer,
     estimate_classical_ffn_memory,
     estimate_quantized_thermo_ffn_memory,
     estimate_thermo_ffn_memory,
     fit_cnn_classifier,
+    fit_cnn_readout_ridge,
     fit_quantized_ffn_mse,
     fit_flow_matching,
+    fit_flow_matching_readout_ridge,
     make_toy_cnn_data,
     make_mog2d,
     quantize_tensor,
@@ -237,6 +240,21 @@ def _stress_flow_matching(metrics: dict[str, object]) -> None:
     metrics["flow_matching_final_loss"] = fit.final_loss
     metrics["flow_matching_sample_steps"] = samples.n_flow_steps
 
+    thermo = ThermodynamicFlowVelocity(
+        2,
+        embed_dim=8,
+        thermo_hidden_dim=16,
+        time_features=4,
+        neuron_config=ThermodynamicNeuronConfig(t_f=0.04, dt=0.04, temperature=0.0),
+        memory_efficient_chunk_size=8,
+    )
+    ridge = fit_flow_matching_readout_ridge(thermo, data, ridge=1e-2, n_pairs=64, eval_pairs=16, generator=generator)
+    if ridge.final_loss >= ridge.initial_loss:
+        raise AssertionError("flow readout ridge stress fit did not reduce loss")
+    metrics["flow_readout_ridge_initial_loss"] = ridge.initial_loss
+    metrics["flow_readout_ridge_final_loss"] = ridge.final_loss
+    metrics["flow_readout_ridge_wall_ms"] = ridge.fit_wall_ms
+
 
 def _stress_cnn(metrics: dict[str, object]) -> None:
     generator = torch.Generator().manual_seed(616)
@@ -272,10 +290,25 @@ def _stress_cnn(metrics: dict[str, object]) -> None:
     result = fit_cnn_classifier(model, x, labels, n_steps=30, learning_rate=1e-2)
     if result.final_loss >= result.initial_loss:
         raise AssertionError("thermodynamic CNN stress training did not reduce loss")
+    ridge_model = ThermodynamicCNNClassifier(
+        1,
+        2,
+        conv_channels=6,
+        thermo_channels=16,
+        neuron_config=config,
+        memory_efficient_chunk_size=8,
+    )
+    ridge = fit_cnn_readout_ridge(ridge_model, x, labels, ridge=1e-2)
+    if ridge.final_loss >= ridge.initial_loss:
+        raise AssertionError("thermodynamic CNN readout ridge stress fit did not reduce loss")
     metrics["cnn_chunked_max_abs_diff"] = max_diff
     metrics["cnn_initial_loss"] = result.initial_loss
     metrics["cnn_final_loss"] = result.final_loss
     metrics["cnn_final_accuracy"] = result.final_accuracy
+    metrics["cnn_readout_ridge_initial_loss"] = ridge.initial_loss
+    metrics["cnn_readout_ridge_final_loss"] = ridge.final_loss
+    metrics["cnn_readout_ridge_accuracy"] = ridge.final_accuracy
+    metrics["cnn_readout_ridge_wall_ms"] = ridge.fit_wall_ms
     metrics["cnn_physical_time"] = model.physical_time
 
 

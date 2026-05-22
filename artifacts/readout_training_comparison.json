@@ -1,0 +1,55 @@
+{
+  "name": "readout_training_comparison",
+  "device": "cpu",
+  "flow_matching": {
+    "task": "2D eight-mode Gaussian mixture flow matching",
+    "readout_ridge": {
+      "method": "flow_readout_ridge",
+      "ridge": 0.01,
+      "initial_loss": 3.0198636054992676,
+      "final_loss": 2.661968231201172,
+      "n_pairs": 512,
+      "fit_wall_ms": 2.5100000202655792,
+      "physical_time": 0.08,
+      "feature_dim": 16,
+      "target_dim": 2,
+      "one_step_mmd2": 0.05217313766479492,
+      "one_step_wall_ms": 1.1303999926894903,
+      "one_step_physical_time": 0.08
+    },
+    "end_to_end_no_ridge": {
+      "initial_loss": 3.0198636054992676,
+      "final_loss": 2.648158550262451,
+      "n_steps": 96,
+      "fit_wall_ms": 325.81179996486753,
+      "one_step_mmd2": 0.05495205521583557,
+      "one_step_wall_ms": 0.49560004845261574,
+      "one_step_physical_time": 0.08
+    }
+  },
+  "cnn": {
+    "task": "vertical-vs-horizontal 8x8 bar classification",
+    "readout_ridge": {
+      "method": "cnn_readout_ridge",
+      "ridge": 0.01,
+      "initial_loss": 0.6969808340072632,
+      "final_loss": 0.661247730255127,
+      "initial_accuracy": 0.53125,
+      "final_accuracy": 1.0,
+      "fit_wall_ms": 5.653199972584844,
+      "n_examples": 96,
+      "feature_dim": 24,
+      "n_classes": 2,
+      "physical_time": 0.08
+    },
+    "end_to_end_no_ridge": {
+      "initial_loss": 0.6925928592681885,
+      "final_loss": 0.043336864560842514,
+      "initial_accuracy": 0.53125,
+      "final_accuracy": 1.0,
+      "n_steps": 80,
+      "fit_wall_ms": 501.1638000141829
+    }
+  },
+  "claim_boundary": "Readout ridge is a fast frozen-feature training path. End-to-end is the no-ridge inductive baseline. This CPU artifact tests training mechanics and relative cost; it is not a production benchmark."
+}

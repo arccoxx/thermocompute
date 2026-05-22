@@ -34,7 +34,11 @@ from thermocompute import (
     available_numeric_formats,
     estimate_quantized_thermo_ffn_memory,
     fit_flow_matching,
+    fit_flow_matching_end_to_end,
+    fit_flow_matching_readout_ridge,
     fit_cnn_classifier,
+    fit_cnn_classifier_end_to_end,
+    fit_cnn_readout_ridge,
     fit_quantized_ffn_mse,
     flow_speedup_vs_diffusion,
     make_mog2d,
@@ -310,7 +314,7 @@ def test_flow_matching_tiny_cpu() -> None:
     generator = torch.Generator().manual_seed(321)
     data = make_mog2d(64, generator=generator)
     model = FlowVelocityMLP(2, hidden_dim=16, time_features=4)
-    result = fit_flow_matching(model, data, n_steps=20, batch_size=16, learning_rate=3e-3, generator=generator)
+    result = fit_flow_matching_end_to_end(model, data, n_steps=20, batch_size=16, learning_rate=3e-3, generator=generator)
     assert result.final_loss < result.initial_loss
 
     samples = sample_flow(model, 16, n_flow_steps=2, generator=generator)
@@ -330,6 +334,25 @@ def test_flow_matching_tiny_cpu() -> None:
     velocity = thermo(data[:4], torch.zeros(4, 1))
     assert velocity.shape == (4, 2)
     assert thermo.physical_time == 0.04
+
+
+def test_flow_matching_readout_ridge_reduces_loss_cpu() -> None:
+    torch.manual_seed(322)
+    generator = torch.Generator().manual_seed(322)
+    data = make_mog2d(96, generator=generator)
+    model = ThermodynamicFlowVelocity(
+        2,
+        embed_dim=8,
+        thermo_hidden_dim=16,
+        time_features=4,
+        neuron_config=ThermodynamicNeuronConfig(t_f=0.04, dt=0.04, temperature=0.0),
+        memory_efficient_chunk_size=8,
+    )
+    result = fit_flow_matching_readout_ridge(model, data, ridge=1e-2, n_pairs=96, eval_pairs=32, generator=generator)
+    assert result.method == "flow_readout_ridge"
+    assert result.final_loss < result.initial_loss
+    assert result.feature_dim == 8
+    assert model(torch.randn(4, 2), torch.zeros(4, 1)).shape == (4, 2)
 
 
 def test_thermodynamic_conv2d_chunked_matches_full_deterministic() -> None:
@@ -370,8 +393,42 @@ def test_thermodynamic_cnn_classifier_tiny_training_cpu() -> None:
     assert logits.shape == (4, 2)
     assert info.physical_time == 0.04
 
-    result = fit_cnn_classifier(model, x, y, n_steps=40, learning_rate=1e-2)
+    result = fit_cnn_classifier_end_to_end(model, x, y, n_steps=40, learning_rate=1e-2)
     assert result.final_loss < result.initial_loss
+
+
+def test_thermodynamic_cnn_readout_ridge_cpu() -> None:
+    torch.manual_seed(334)
+    generator = torch.Generator().manual_seed(334)
+    x, y = make_toy_cnn_data(64, noise=0.04, generator=generator)
+    model = ThermodynamicCNNClassifier(
+        1,
+        2,
+        conv_channels=6,
+        thermo_channels=16,
+        neuron_config=ThermodynamicNeuronConfig(t_f=0.04, dt=0.04, temperature=0.0),
+        memory_efficient_chunk_size=8,
+    )
+    result = fit_cnn_readout_ridge(model, x, y, ridge=1e-2)
+    assert result.method == "cnn_readout_ridge"
+    assert result.final_loss < result.initial_loss
+    assert result.final_accuracy >= result.initial_accuracy
+    assert result.feature_dim == 16
+    assert model.readout_mode == "thermo"
+    logits = model(x[:4])
+    assert logits.shape == (4, 2)
+
+    clone = ThermodynamicCNNClassifier(
+        1,
+        2,
+        conv_channels=6,
+        thermo_channels=16,
+        neuron_config=ThermodynamicNeuronConfig(t_f=0.04, dt=0.04, temperature=0.0),
+        memory_efficient_chunk_size=8,
+        readout_mode="thermo",
+    )
+    clone.load_state_dict(model.state_dict())
+    assert torch.allclose(logits, clone(x[:4]), atol=1e-6)
 
 
 def test_integration_block_reports_tempering_swaps() -> None:
@@ -557,7 +614,11 @@ def test_public_imports() -> None:
         "estimate_quantized_thermo_ffn_memory",
         "estimate_thermo_ffn_memory",
         "fit_cnn_classifier",
+        "fit_cnn_classifier_end_to_end",
+        "fit_cnn_readout_ridge",
         "fit_flow_matching",
+        "fit_flow_matching_end_to_end",
+        "fit_flow_matching_readout_ridge",
         "fit_quantized_ffn_mse",
         "flow_speedup_vs_diffusion",
         "make_toy_cnn_data",

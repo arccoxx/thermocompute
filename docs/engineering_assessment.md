@@ -16,9 +16,12 @@ before presenting it publicly.
 - CPU-light flow matching module with classical and thermodynamic velocity fields.
 - CPU-light thermodynamic CNN module, classifier wrapper, and toy local-feature
   experiment.
+- Fast readout ridge trainers for thermodynamic flow matching and CNNs, plus
+  explicit no-ridge end-to-end aliases for both paths.
+- CPU-light readout-vs-end-to-end comparison artifact for flow and CNN models.
 - Bounded stress script for chunked no-replica inference, cold training,
   distribution families, low-precision formats, CNN coverage, flow matching,
-  and memory-law estimates.
+  readout ridge checks, and memory-law estimates.
 
 ## Strong Current Components
 
@@ -31,6 +34,9 @@ before presenting it publicly.
   portable across CPU and GPU.
 - Flow matching has a reproducible toy experiment that reports sampling steps,
   MMD, wall time, and diffusion-step speedup proxies.
+- Fast readout training now exists outside the transformer path: flow matching
+  solves the velocity readout, and CNNs solve from pooled thermodynamic hidden
+  channels.
 - Modeled physical time is separated from PyTorch wall time in benchmark
   artifacts.
 - Claim boundaries are explicit: GPU wall-clock plateau is empirical; modeled
@@ -40,6 +46,8 @@ before presenting it publicly.
 
 - Optional CUDA extension is experimental and not required.
 - Training is not constant-time and not claimed to beat classical baselines.
+- Readout ridge is fast but task-dependent; end-to-end training can still
+  improve task metrics when the frozen feature fabric is not enough.
 - Parallel tempering has not shown enough value in the current experiments to
   be the default path.
 - Chunked inference reduces peak state memory, not parameter memory.

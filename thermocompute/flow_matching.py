@@ -24,6 +24,21 @@ class FlowMatchFitResult:
 
 
 @dataclass(frozen=True)
+class FlowReadoutFitResult:
+    """Closed-form readout fitting summary for thermodynamic flow matching."""
+
+    method: str
+    ridge: float
+    initial_loss: float
+    final_loss: float
+    n_pairs: int
+    fit_wall_ms: float
+    physical_time: float
+    feature_dim: int
+    target_dim: int
+
+
+@dataclass(frozen=True)
 class FlowSampleResult:
     """Sampling summary for a flow-matching model."""
 
@@ -99,10 +114,15 @@ class ThermodynamicFlowVelocity(nn.Module):
         return self.thermo.physical_time
 
     def forward(self, x: Tensor, t: Tensor, *, generator: torch.Generator | None = None) -> Tensor:
+        return self.output_proj(self.readout_features(x, t, generator=generator))
+
+    def readout_features(self, x: Tensor, t: Tensor, *, generator: torch.Generator | None = None) -> Tensor:
+        """Return frozen thermodynamic features used by the velocity readout."""
+
         features = torch.cat([x, time_embedding(t, self.time_features)], dim=-1)
         hidden = self.input_proj(features).unsqueeze(1)
         flowed = self.thermo(hidden, generator=generator).squeeze(1)
-        return self.output_proj(torch.tanh(flowed))
+        return torch.tanh(flowed)
 
 
 def time_embedding(t: Tensor, n_features: int) -> Tensor:
@@ -201,6 +221,87 @@ def fit_flow_matching(
     )
 
 
+def fit_flow_matching_end_to_end(
+    model: nn.Module,
+    data: Tensor,
+    *,
+    n_steps: int = 128,
+    batch_size: int = 64,
+    learning_rate: float = 2e-3,
+    generator: torch.Generator | None = None,
+) -> FlowMatchFitResult:
+    """Alias for no-ridge inductive flow-matching training."""
+
+    return fit_flow_matching(
+        model,
+        data,
+        n_steps=n_steps,
+        batch_size=batch_size,
+        learning_rate=learning_rate,
+        generator=generator,
+    )
+
+
+@torch.no_grad()
+def fit_flow_matching_readout_ridge(
+    model: ThermodynamicFlowVelocity,
+    data: Tensor,
+    *,
+    ridge: float = 1e-3,
+    n_pairs: int = 512,
+    eval_pairs: int | None = None,
+    generator: torch.Generator | None = None,
+) -> FlowReadoutFitResult:
+    """Fit only the thermodynamic flow velocity readout with one ridge solve.
+
+    The input projection and thermodynamic core are treated as a fixed
+    stochastic feature generator. The final velocity readout is solved in
+    closed form against flow-matching targets `x1 - x0`.
+    """
+
+    if not isinstance(model, ThermodynamicFlowVelocity):
+        raise TypeError("fit_flow_matching_readout_ridge requires ThermodynamicFlowVelocity")
+    if ridge < 0.0:
+        raise ValueError("ridge must be non-negative")
+    if n_pairs <= 0:
+        raise ValueError("n_pairs must be positive")
+    eval_pairs = min(n_pairs, data.shape[0]) if eval_pairs is None else int(eval_pairs)
+    if eval_pairs <= 0:
+        raise ValueError("eval_pairs must be positive")
+
+    was_training = model.training
+    model.eval()
+    eval_x1 = data[: min(eval_pairs, data.shape[0])]
+    eval_x0 = torch.randn(eval_x1.shape, device=eval_x1.device, dtype=eval_x1.dtype, generator=generator)
+    eval_t = torch.linspace(0.05, 0.95, eval_x1.shape[0], device=eval_x1.device, dtype=eval_x1.dtype).unsqueeze(-1)
+    initial_loss = float(flow_matching_pair_loss(model, eval_x0, eval_x1, eval_t, generator=generator).detach().cpu())
+
+    start = time.perf_counter()
+    x0, x1, t = _make_flow_pairs(data, n_pairs, generator=generator)
+    xt = (1.0 - t) * x0 + t * x1
+    target_velocity = x1 - x0
+    features = model.readout_features(xt, t, generator=generator)
+    solution = _ridge_solve(_with_bias(features), target_velocity, ridge)
+    model.output_proj.weight.copy_(solution[:-1].T.contiguous())
+    model.output_proj.bias.copy_(solution[-1].contiguous())
+
+    final_loss = float(flow_matching_pair_loss(model, eval_x0, eval_x1, eval_t, generator=generator).detach().cpu())
+    fit_wall_ms = (time.perf_counter() - start) * 1000.0
+    if was_training:
+        model.train()
+    return FlowReadoutFitResult(
+        method="flow_readout_ridge",
+        ridge=float(ridge),
+        initial_loss=initial_loss,
+        final_loss=final_loss,
+        n_pairs=int(n_pairs),
+        fit_wall_ms=float(fit_wall_ms),
+        physical_time=float(model.physical_time),
+        feature_dim=int(features.shape[-1]),
+        target_dim=int(model.data_dim),
+    )
+
+
 @torch.no_grad()
 def sample_flow(
     model: nn.Module,
@@ -278,6 +379,31 @@ def flow_speedup_vs_diffusion(n_diffusion_steps: int, n_flow_steps: int) -> floa
 def _sample_batch(data: Tensor, batch_size: int, *, generator: torch.Generator | None) -> Tensor:
     indices = torch.randint(data.shape[0], (batch_size,), device=data.device, generator=generator)
     return data[indices]
+
+
+def _make_flow_pairs(
+    data: Tensor,
+    n_pairs: int,
+    *,
+    generator: torch.Generator | None,
+) -> tuple[Tensor, Tensor, Tensor]:
+    x1 = _sample_batch(data, n_pairs, generator=generator)
+    x0 = torch.randn(x1.shape, device=x1.device, dtype=x1.dtype, generator=generator)
+    t = torch.rand(x1.shape[0], 1, device=x1.device, dtype=x1.dtype, generator=generator)
+    return x0, x1, t
+
+
+def _with_bias(features: Tensor) -> Tensor:
+    ones = torch.ones(features.shape[0], 1, device=features.device, dtype=features.dtype)
+    return torch.cat([features, ones], dim=-1)
+
+
+def _ridge_solve(design: Tensor, targets: Tensor, ridge: float) -> Tensor:
+    gram = design.T @ design
+    reg = torch.eye(gram.shape[0], device=gram.device, dtype=gram.dtype) * float(ridge)
+    reg[-1, -1] = 0.0
+    rhs = design.T @ targets
+    return torch.linalg.solve(gram + reg, rhs)
 
 
 def _call_velocity(

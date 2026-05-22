@@ -9,7 +9,11 @@ thermodynamic width idea is not limited to MLPs and transformers.
 - `ThermodynamicCNNClassifier`: tiny classifier wrapper around one
   thermodynamic convolution, tanh pooling, and a linear classifier.
 - `make_toy_cnn_data`: CPU-light vertical-vs-horizontal bar dataset.
-- `fit_cnn_classifier`: full-batch AdamW trainer for tiny coverage tests.
+- `fit_cnn_classifier_end_to_end`: full-batch no-ridge AdamW trainer for tiny
+  coverage tests.
+- `fit_cnn_readout_ridge`: fast frozen-feature readout solve from pooled
+  thermodynamic hidden channels.
+- `fit_cnn_classifier`: backward-compatible alias for the end-to-end trainer.
 
 ## How The Layer Works
 
@@ -73,6 +77,31 @@ Current checked-in result on an 8x8 vertical-vs-horizontal bar task:
 This is a coverage experiment, not a production computer-vision result. It
 shows that the package can express and train convolutional thermodynamic
 modules with PyTorch autograd, state dicts, and chunked inference.
+
+## Fast Readout Vs End-To-End Training
+
+Run:
+
+```powershell
+python scripts/run_readout_training_comparison.py --device cpu --flow-steps 96 --cnn-steps 80 --outdir artifacts
+```
+
+Current CNN result:
+
+| Method | Final Loss | Final Accuracy | Fit Wall ms | Physical Time |
+|---|---:|---:|---:|---:|
+| readout ridge | 0.6612 | 1.000 | 5.65 | 0.08 |
+| end-to-end no ridge | 0.0433 | 1.000 | 501.16 | 0.08 |
+
+The ridge trainer solves directly from pooled thermodynamic hidden channels,
+not from the random convolutional output projection. That is the CNN analogue
+of thermodynamic readout alignment: keep the physical feature fabric fixed and
+solve a small digital readout. End-to-end training is far slower on CPU here,
+but it learns a much more confident classifier.
+
+Implementation note: ridge fitting switches the classifier to
+`readout_mode="thermo"`. To load a ridge-trained CNN state dict, instantiate
+`ThermodynamicCNNClassifier(..., readout_mode="thermo")` before loading.
 
 ## Claim Boundary
 

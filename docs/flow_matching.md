@@ -46,7 +46,10 @@ does not grow with width under the parallel substrate model.
 - `FlowVelocityMLP`: standard time-conditioned MLP velocity field.
 - `ThermodynamicFlowVelocity`: time-conditioned velocity field with a
   thermodynamic FFN core.
-- `fit_flow_matching`: CPU-safe conditional flow matching trainer.
+- `fit_flow_matching_end_to_end`: CPU-safe no-ridge AdamW trainer.
+- `fit_flow_matching_readout_ridge`: fast frozen-feature velocity readout
+  solve for `ThermodynamicFlowVelocity`.
+- `fit_flow_matching`: backward-compatible alias for the end-to-end trainer.
 - `sample_flow`: Euler sampler for the learned probability-flow ODE.
 - `make_mog2d`: tiny eight-mode 2D mixture generator for smoke experiments.
 - `rbf_mmd2`: lightweight distribution-distance metric.
@@ -70,6 +73,26 @@ Interpretation: the one-step thermodynamic flow is slightly less accurate than
 the best 8-step classical flow in this small CPU run, but it reaches a
 comparable distribution score with one velocity evaluation. That is the
 research reason to keep exploring this path.
+
+## Fast Readout Vs End-To-End Training
+
+Run:
+
+```powershell
+python scripts/run_readout_training_comparison.py --device cpu --flow-steps 96 --cnn-steps 80 --outdir artifacts
+```
+
+Current flow result:
+
+| Method | Final Loss | One-Step MMD2 | Fit Wall ms | Physical Time |
+|---|---:|---:|---:|---:|
+| readout ridge | 2.6620 | 0.0522 | 2.51 | 0.08 |
+| end-to-end no ridge | 2.6482 | 0.0550 | 325.81 | 0.08 |
+
+The ridge path is much faster because it freezes the thermodynamic feature
+fabric and solves only the velocity readout. In this tiny run, both methods
+reach nearly the same fixed-pair supervised loss, while ridge is over 100x
+faster than 96 CPU AdamW steps.
 
 ## Claim Boundary
 

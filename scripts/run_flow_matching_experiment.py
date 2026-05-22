@@ -16,7 +16,7 @@ from thermocompute import (
     FlowVelocityMLP,
     ThermodynamicFlowVelocity,
     ThermodynamicNeuronConfig,
-    fit_flow_matching,
+    fit_flow_matching_end_to_end,
     flow_speedup_vs_diffusion,
     make_mog2d,
     rbf_mmd2,
@@ -55,7 +55,7 @@ def main() -> int:
     # Give both models the same deterministic random seed before training;
     # their architectures differ, but the experiment is reproducible.
     set_seed(2718)
-    classical_fit = fit_flow_matching(
+    classical_fit = fit_flow_matching_end_to_end(
         classical,
         train,
         n_steps=args.train_steps,
@@ -64,7 +64,7 @@ def main() -> int:
         generator=generator,
     )
     set_seed(2718)
-    thermo_fit = fit_flow_matching(
+    thermo_fit = fit_flow_matching_end_to_end(
         thermo,
         train,
         n_steps=args.train_steps,

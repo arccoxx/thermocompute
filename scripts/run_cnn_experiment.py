@@ -15,7 +15,7 @@ from torch import nn
 from thermocompute import (
     ThermodynamicCNNClassifier,
     ThermodynamicNeuronConfig,
-    fit_cnn_classifier,
+    fit_cnn_classifier_end_to_end,
     make_toy_cnn_data,
     set_seed,
 )
@@ -60,7 +60,7 @@ def main() -> int:
 
     set_seed(1001)
     classical = ClassicalTinyCNN().to(device)
-    classical_result = fit_cnn_classifier(
+    classical_result = fit_cnn_classifier_end_to_end(
         classical,
         train_x,
         train_y,
@@ -79,7 +79,7 @@ def main() -> int:
         neuron_config=ThermodynamicNeuronConfig(t_f=0.08, dt=0.04, temperature=0.0),
         memory_efficient_chunk_size=12,
     ).to(device)
-    thermo_result = fit_cnn_classifier(
+    thermo_result = fit_cnn_classifier_end_to_end(
         thermo,
         train_x,
         train_y,

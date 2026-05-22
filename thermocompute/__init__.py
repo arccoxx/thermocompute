@@ -11,10 +11,13 @@ from .config import (
 )
 from .cnn import (
     CNNFitResult,
+    CNNReadoutFitResult,
     ThermodynamicCNNClassifier,
     ThermodynamicConv2d,
     accuracy,
     fit_cnn_classifier,
+    fit_cnn_classifier_end_to_end,
+    fit_cnn_readout_ridge,
     make_toy_cnn_data,
 )
 from .distributions import (
@@ -28,10 +31,13 @@ from .distributions import (
 )
 from .flow_matching import (
     FlowMatchFitResult,
+    FlowReadoutFitResult,
     FlowSampleResult,
     FlowVelocityMLP,
     ThermodynamicFlowVelocity,
     fit_flow_matching,
+    fit_flow_matching_end_to_end,
+    fit_flow_matching_readout_ridge,
     flow_matching_loss,
     flow_matching_pair_loss,
     flow_speedup_vs_diffusion,
@@ -94,6 +100,7 @@ from .primitives import (
 __all__ = [
     "BinaryPBit",
     "CNNFitResult",
+    "CNNReadoutFitResult",
     "CategoricalPDIT",
     "DeviceConfig",
     "DistributionAdapter",
@@ -102,6 +109,7 @@ __all__ = [
     "ExperimentResult",
     "FFNMemoryEstimate",
     "FlowMatchFitResult",
+    "FlowReadoutFitResult",
     "FlowSampleResult",
     "FlowVelocityMLP",
     "IsingEnergy",
@@ -135,7 +143,11 @@ __all__ = [
     "fit_transformer_readout_parallel_tempering",
     "fit_transformer_readout_ridge",
     "fit_cnn_classifier",
+    "fit_cnn_classifier_end_to_end",
+    "fit_cnn_readout_ridge",
     "fit_flow_matching",
+    "fit_flow_matching_end_to_end",
+    "fit_flow_matching_readout_ridge",
     "flow_matching_loss",
     "flow_matching_pair_loss",
     "flow_speedup_vs_diffusion",
