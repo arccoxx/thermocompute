@@ -2,9 +2,10 @@
 
 ## What This Proves
 
-- `thermocompute` can emulate p-bits/PDITs, PMODE, PMOG, quartic thermodynamic neurons, and thermodynamic transformer-style blocks in PyTorch.
+- `thermocompute` can emulate p-bits/PDITs, PMODE, PMOG, quartic thermodynamic neurons, thermodynamic CNN layers, and thermodynamic transformer-style blocks in PyTorch.
 - Generic distribution support covers any distribution available through `torch.distributions`, plus custom user-provided distribution adapters.
 - Flow matching support can train and sample tiny probability-flow ODE models, including a thermodynamic velocity field.
+- CNN support can train a tiny local-feature classifier with a thermodynamic convolutional hidden channel fabric.
 - Low-precision support provides quantization-aware thermodynamic FFN inference and small training experiments for fp16/bf16/fp8/int8/int4/int2/binary formats.
 - The small precision-training comparison shows several low-precision thermodynamic FFN modes can train to fp32-like loss on a tiny deterministic task.
 - Fixed-depth thermodynamic neuron and transformer feed-forward layers report constant modeled physical time as width increases.
@@ -25,7 +26,7 @@
 
 - Parameter memory remains linear in thermodynamic width because current weights and readout weights must still be stored.
 - The package includes first-order FFN memory estimators for classical and thermodynamic layers; they are planning tools, not allocator-accurate profilers.
-- The PyTorch emulator now supports chunked projected inference for `ThermodynamicFFN`, `ThermodynamicTransformerLayer`, and `ThermodynamicTransformerBlock`.
+- The PyTorch emulator now supports chunked projected inference for `ThermodynamicFFN`, `ThermodynamicConv2d`, `ThermodynamicTransformerLayer`, and `ThermodynamicTransformerBlock`.
 - Chunking reduces peak thermodynamic state/activation memory from width-proportional `O(batch * seq * width * replicas)` to `O(batch * seq * chunk_size * replicas)`.
 - In the best no-replica case, chunked state memory is `O(batch * seq * chunk_size)` while parameter memory remains `O(width * (input_dim + output_dim))`, comparable to a dense classical FFN plus small thermodynamic coefficients.
 - Chunking can increase emulator wall time because chunks execute sequentially in software.
@@ -44,6 +45,7 @@
 - It does not provide native packed int4/int2/binary CUDA kernels; current low-precision training uses quantization-aware emulation with straight-through gradients.
 - It does not prove low-precision thermodynamic training beats mixed precision or fp32 training at production scale.
 - It does not prove thermodynamic flow matching beats production diffusion models; current flow results are toy CPU feasibility checks.
+- It does not prove thermodynamic CNNs beat production cuDNN-style convolution kernels; current CNN results are toy CPU coverage checks.
 - It does not reimplement every named distribution in probability theory from scratch; it delegates broad distribution coverage to PyTorch's distribution library.
 
 ## Current Best Claims

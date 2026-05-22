@@ -18,14 +18,18 @@ from thermocompute import (
     FlowVelocityMLP,
     QuantizationConfig,
     QuantizedThermodynamicFFN,
+    ThermodynamicCNNClassifier,
+    ThermodynamicConv2d,
     ThermodynamicFFN,
     ThermodynamicNeuronConfig,
     ThermodynamicTransformerLayer,
     estimate_classical_ffn_memory,
     estimate_quantized_thermo_ffn_memory,
     estimate_thermo_ffn_memory,
+    fit_cnn_classifier,
     fit_quantized_ffn_mse,
     fit_flow_matching,
+    make_toy_cnn_data,
     make_mog2d,
     quantize_tensor,
     sample_flow,
@@ -47,6 +51,7 @@ def main() -> int:
     _stress_distributions(metrics, device, dtype)
     _stress_low_precision(metrics)
     _stress_flow_matching(metrics)
+    _stress_cnn(metrics)
     _stress_invalid_chunk_sizes(metrics)
 
     print(json.dumps({"name": "stress_checks", "metrics": metrics}, indent=2))
@@ -231,6 +236,47 @@ def _stress_flow_matching(metrics: dict[str, object]) -> None:
     metrics["flow_matching_initial_loss"] = fit.initial_loss
     metrics["flow_matching_final_loss"] = fit.final_loss
     metrics["flow_matching_sample_steps"] = samples.n_flow_steps
+
+
+def _stress_cnn(metrics: dict[str, object]) -> None:
+    generator = torch.Generator().manual_seed(616)
+    x, labels = make_toy_cnn_data(48, noise=0.04, generator=generator)
+    config = ThermodynamicNeuronConfig(t_f=0.04, dt=0.04, temperature=0.0)
+
+    full = ThermodynamicConv2d(1, 2, 8, kernel_size=3, padding=1, neuron_config=config)
+    chunked = ThermodynamicConv2d(
+        1,
+        2,
+        8,
+        kernel_size=3,
+        padding=1,
+        neuron_config=config,
+        memory_efficient_chunk_size=3,
+    )
+    chunked.load_state_dict(full.state_dict())
+    with torch.no_grad():
+        y_full = full(x[:4])
+        y_chunked = chunked(x[:4])
+    max_diff = torch.max(torch.abs(y_full - y_chunked)).detach().cpu().item()
+    if max_diff > 2e-5:
+        raise AssertionError(f"chunked thermodynamic CNN mismatch: {max_diff}")
+
+    model = ThermodynamicCNNClassifier(
+        1,
+        2,
+        conv_channels=6,
+        thermo_channels=16,
+        neuron_config=config,
+        memory_efficient_chunk_size=8,
+    )
+    result = fit_cnn_classifier(model, x, labels, n_steps=30, learning_rate=1e-2)
+    if result.final_loss >= result.initial_loss:
+        raise AssertionError("thermodynamic CNN stress training did not reduce loss")
+    metrics["cnn_chunked_max_abs_diff"] = max_diff
+    metrics["cnn_initial_loss"] = result.initial_loss
+    metrics["cnn_final_loss"] = result.final_loss
+    metrics["cnn_final_accuracy"] = result.final_accuracy
+    metrics["cnn_physical_time"] = model.physical_time
 
 
 def _stress_low_precision(metrics: dict[str, object]) -> None:

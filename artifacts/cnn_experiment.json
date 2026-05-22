@@ -1,0 +1,27 @@
+{
+  "name": "cnn_experiment",
+  "device": "cpu",
+  "task": "vertical-vs-horizontal 8x8 bar classification",
+  "train_steps": 80,
+  "models": {
+    "classical_tiny_cnn": {
+      "initial_loss": 0.7094424962997437,
+      "final_loss": 1.53871897055069e-05,
+      "initial_accuracy": 0.46875,
+      "final_accuracy": 1.0,
+      "n_steps": 80,
+      "fit_wall_ms": 92.02300000470132,
+      "modeled_physical_time": 0.0
+    },
+    "thermodynamic_cnn": {
+      "initial_loss": 0.6925928592681885,
+      "final_loss": 0.043336864560842514,
+      "initial_accuracy": 0.53125,
+      "final_accuracy": 1.0,
+      "n_steps": 80,
+      "fit_wall_ms": 459.439400001429,
+      "modeled_physical_time": 0.08
+    }
+  },
+  "claim_boundary": "This is a CPU-light coverage experiment showing CNN compatibility. It is not a production computer-vision benchmark."
+}

@@ -10,6 +10,8 @@ from thermocompute import (
     DistributionSampler,
     DistributionSpec,
     FlowVelocityMLP,
+    ThermodynamicCNNClassifier,
+    ThermodynamicConv2d,
     PhysicalTimeReport,
     PMODE,
     PMOG,
@@ -32,10 +34,12 @@ from thermocompute import (
     available_numeric_formats,
     estimate_quantized_thermo_ffn_memory,
     fit_flow_matching,
+    fit_cnn_classifier,
     fit_quantized_ffn_mse,
     flow_speedup_vs_diffusion,
     make_mog2d,
     numeric_format_bits,
+    make_toy_cnn_data,
     make_distribution,
     quantize_tensor,
     quantized_storage_nbytes,
@@ -328,6 +332,48 @@ def test_flow_matching_tiny_cpu() -> None:
     assert thermo.physical_time == 0.04
 
 
+def test_thermodynamic_conv2d_chunked_matches_full_deterministic() -> None:
+    torch.manual_seed(271)
+    config = ThermodynamicNeuronConfig(t_f=0.04, dt=0.04, temperature=0.0)
+    full = ThermodynamicConv2d(1, 3, 10, kernel_size=3, padding=1, neuron_config=config)
+    chunked = ThermodynamicConv2d(
+        1,
+        3,
+        10,
+        kernel_size=3,
+        padding=1,
+        neuron_config=config,
+        memory_efficient_chunk_size=4,
+    )
+    chunked.load_state_dict(full.state_dict())
+    x = torch.randn(2, 1, 8, 8)
+    y_full, info_full = full(x, return_info=True)
+    y_chunked, info_chunked = chunked(x, return_info=True)
+    assert y_full.shape == (2, 3, 8, 8)
+    assert torch.allclose(y_full, y_chunked, atol=1e-6)
+    assert info_full.physical_time == info_chunked.physical_time == 0.04
+
+
+def test_thermodynamic_cnn_classifier_tiny_training_cpu() -> None:
+    torch.manual_seed(333)
+    generator = torch.Generator().manual_seed(333)
+    x, y = make_toy_cnn_data(64, noise=0.04, generator=generator)
+    model = ThermodynamicCNNClassifier(
+        1,
+        2,
+        conv_channels=6,
+        thermo_channels=16,
+        neuron_config=ThermodynamicNeuronConfig(t_f=0.04, dt=0.04, temperature=0.0),
+        memory_efficient_chunk_size=8,
+    )
+    logits, info = model(x[:4], return_info=True)
+    assert logits.shape == (4, 2)
+    assert info.physical_time == 0.04
+
+    result = fit_cnn_classifier(model, x, y, n_steps=40, learning_rate=1e-2)
+    assert result.final_loss < result.initial_loss
+
+
 def test_integration_block_reports_tempering_swaps() -> None:
     config = ThermodynamicTransformerConfig(
         embed_dim=8,
@@ -499,6 +545,8 @@ def test_public_imports() -> None:
         "fit_transformer_end_to_end_cold",
         "fit_transformer_end_to_end_parallel_tempering",
         "DistributionSampler",
+        "ThermodynamicCNNClassifier",
+        "ThermodynamicConv2d",
         "FlowVelocityMLP",
         "QuantizationConfig",
         "QuantizedThermodynamicFFN",
@@ -508,9 +556,11 @@ def test_public_imports() -> None:
         "estimate_classical_ffn_memory",
         "estimate_quantized_thermo_ffn_memory",
         "estimate_thermo_ffn_memory",
+        "fit_cnn_classifier",
         "fit_flow_matching",
         "fit_quantized_ffn_mse",
         "flow_speedup_vs_diffusion",
+        "make_toy_cnn_data",
         "make_mog2d",
         "make_distribution",
         "numeric_format_bits",

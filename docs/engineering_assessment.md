@@ -14,8 +14,11 @@ before presenting it publicly.
 - First-order FFN memory estimators for classical and thermodynamic layers.
 - Quantization-aware thermodynamic FFN path for fp16/bf16/fp8/int8/int4/int2/binary experiments.
 - CPU-light flow matching module with classical and thermodynamic velocity fields.
+- CPU-light thermodynamic CNN module, classifier wrapper, and toy local-feature
+  experiment.
 - Bounded stress script for chunked no-replica inference, cold training,
-  distribution families, low-precision formats, and memory-law estimates.
+  distribution families, low-precision formats, CNN coverage, flow matching,
+  and memory-law estimates.
 
 ## Strong Current Components
 
@@ -47,6 +50,8 @@ before presenting it publicly.
   packed int4 CUDA kernel path yet.
 - Flow matching is currently a toy 2D feasibility path, not a production
   diffusion replacement.
+- CNN support is currently a toy 8x8 coverage path, not a production
+  computer-vision benchmark.
 - Distribution support covers any distribution available through
   `torch.distributions` plus custom adapters. It does not implement every named
   distribution ever described in probability theory from scratch.

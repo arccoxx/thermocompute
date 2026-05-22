@@ -9,6 +9,14 @@ from .config import (
     ThermodynamicTransformerConfig,
     set_seed,
 )
+from .cnn import (
+    CNNFitResult,
+    ThermodynamicCNNClassifier,
+    ThermodynamicConv2d,
+    accuracy,
+    fit_cnn_classifier,
+    make_toy_cnn_data,
+)
 from .distributions import (
     DistributionAdapter,
     DistributionSampler,
@@ -85,6 +93,7 @@ from .primitives import (
 
 __all__ = [
     "BinaryPBit",
+    "CNNFitResult",
     "CategoricalPDIT",
     "DeviceConfig",
     "DistributionAdapter",
@@ -105,6 +114,8 @@ __all__ = [
     "QuantizedFitResult",
     "QuantizedThermodynamicFFN",
     "ThermodynamicMLP",
+    "ThermodynamicCNNClassifier",
+    "ThermodynamicConv2d",
     "ThermodynamicFlowVelocity",
     "ThermodynamicNeuronLayer",
     "ThermodynamicNeuronConfig",
@@ -123,12 +134,14 @@ __all__ = [
     "fit_transformer_end_to_end_parallel_tempering",
     "fit_transformer_readout_parallel_tempering",
     "fit_transformer_readout_ridge",
+    "fit_cnn_classifier",
     "fit_flow_matching",
     "flow_matching_loss",
     "flow_matching_pair_loss",
     "flow_speedup_vs_diffusion",
     "available_distributions",
     "available_numeric_formats",
+    "accuracy",
     "distribution_class",
     "estimate_quantized_thermo_ffn_memory",
     "estimate_classical_ffn_memory",
@@ -137,6 +150,7 @@ __all__ = [
     "get_numeric_format",
     "make_distribution",
     "make_mog2d",
+    "make_toy_cnn_data",
     "moment_summary",
     "numeric_format_bits",
     "physical_advantage_ratio",

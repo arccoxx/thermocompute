@@ -4,7 +4,8 @@
 computing. It provides software models of p-bits/PDITs, PMODE Gaussian
 samplers, PMOG mixture samplers, generic `torch.distributions` probability
 families, low-precision quantization-aware FFNs, flow-matching generative
-models, and fixed-observation-time thermodynamic neuron layers.
+models, thermodynamic convolutional layers, and fixed-observation-time
+thermodynamic neuron layers.
 
 **The punchline:** `thermocompute` lets us study neural layers where width can
 behave more like parallel fabric than sequential latency. Today, that matters
@@ -97,6 +98,10 @@ that can be dropped into real experiments:
 - `ThermodynamicTransformerBlock`: pre-norm attention plus a thermodynamic FFN
 - `ThermodynamicTransformerLayer`: research layer with sampled PDIT attention
   and thermodynamic feed-forward width
+- `ThermodynamicConv2d`: image/local-feature layer with a thermodynamic hidden
+  channel fabric
+- `ThermodynamicCNNClassifier`: tiny classifier wrapper for lightweight CNN
+  experiments
 - `ThermodynamicMLP`: fixed-time stochastic MLPs for non-sequence experiments
 
 The goal is not to beat every optimized dense kernel on every shape. The goal
@@ -107,6 +112,7 @@ classical dense FFN width. That makes the package useful for:
 - wide stochastic feature maps
 - reservoir/readout experiments
 - uncertainty-aware transformer blocks
+- local image and feature-map experiments
 - synthetic sequence modeling
 - energy-based or diffusion-like latent transformations
 - flow-matching generative sampling with fewer neural evaluations
@@ -334,6 +340,7 @@ thermocompute/
   primitives.py     p-bits, PDIT, PMODE, PMOG, Ising energy
   distributions.py  generic torch.distributions wrappers and adapters
   neurons.py        fixed-time thermodynamic neuron layers and MLPs
+  cnn.py            thermodynamic convolution layers and toy CNN classifier
   transformer.py    thermodynamic transformer attention and FFN blocks
   flow_matching.py  conditional flow matching and thermodynamic velocity fields
   precision.py      low-precision quantization-aware FFN support
@@ -353,6 +360,7 @@ scripts/
   run_smoke.py
   run_poc.py
   run_flow_matching_experiment.py
+  run_cnn_experiment.py
   run_precision_experiments.py
   run_precision_training_comparison.py
   run_experiments.py
@@ -704,6 +712,60 @@ The thermodynamic one-step result is the interesting research signal: it is not
 as accurate as the best 8-step classical flow in this tiny run, but it reaches
 a comparable distribution score with a single velocity evaluation. This is a
 toy CPU feasibility check, not a production diffusion benchmark.
+
+### Thermodynamic CNNs
+
+CNN support covers the local-feature case: every receptive field is converted
+to a current vector, the hidden thermodynamic channel bank evolves for the same
+fixed observation window, and a linear readout maps those thermodynamic
+features into ordinary output channels.
+
+```text
+image patch -> current bank -> fixed-time thermodynamic channels -> output channels
+```
+
+The layer keeps the CNN contract:
+
+```text
+[batch, channels, height, width] -> [batch, out_channels, out_height, out_width]
+```
+
+A minimal classifier looks like this:
+
+```python
+from thermocompute import ThermodynamicCNNClassifier, ThermodynamicNeuronConfig
+
+model = ThermodynamicCNNClassifier(
+    in_channels=1,
+    n_classes=2,
+    conv_channels=8,
+    thermo_channels=24,
+    neuron_config=ThermodynamicNeuronConfig(t_f=0.08, dt=0.04, temperature=0.0),
+    memory_efficient_chunk_size=12,
+)
+
+logits, info = model(images, return_info=True)
+print(info.physical_time)  # 0.08
+```
+
+Run the lightweight CPU coverage experiment:
+
+```powershell
+python scripts/run_cnn_experiment.py --device cpu --train-steps 80 --outdir artifacts
+```
+
+Current checked-in toy result on an 8x8 vertical-vs-horizontal bar task:
+
+| Model | Final Loss | Final Accuracy | Fit Wall ms | Modeled Physical Time |
+|---|---:|---:|---:|---:|
+| classical tiny CNN | 0.000015 | 1.000 | 92.0 | 0.0 |
+| thermodynamic CNN | 0.043337 | 1.000 | 459.4 | 0.08 |
+
+This result is deliberately modest: it proves the package can express,
+differentiate, chunk, train, and serialize convolutional thermodynamic modules.
+It is not a production computer-vision benchmark. The important coverage point
+is that the fixed-time thermodynamic width idea is not restricted to
+transformers or MLPs; it also maps naturally to local receptive fields.
 
 ### BinaryPBit
 
@@ -1337,7 +1399,10 @@ number of units participating in that window.
 
 This package exposes that separation directly. In the width-scaling
 experiments, the thermodynamic MLP and transformer FFN modeled physical time
-stay fixed as width increases. PyTorch wall time is still a normal GPU
+stay fixed as width increases. The thermodynamic CNN extends the same idea to
+local receptive fields: `thermo_channels` can widen the local stochastic feature
+bank while the modeled convolutional physical time remains the same fixed
+window. PyTorch wall time is still a normal GPU
 measurement, and it is valuable in its own right: if it stays roughly flat over
 your target width range, then the GPU-only path is already useful as a wide
 stochastic layer family. The physical-time metric shows what the same
@@ -1388,6 +1453,8 @@ profile changes:
 - Wider latent spaces increase hardware area, not necessarily physical latency.
 - Wider transformer feed-forward blocks increase thermodynamic fabric, not
   necessarily the fixed-time inference window.
+- Wider convolutional feature banks increase local thermodynamic fabric, not
+  necessarily the fixed-time local inference window.
 - More parallel samples increase device count, not necessarily sequential
   sampling time.
 - Multimodal exploration can use replica temperature ladders in the same fixed
@@ -1456,6 +1523,7 @@ python scripts/run_poc.py
 python scripts/run_precision_experiments.py --device cpu --outdir artifacts
 python scripts/run_precision_training_comparison.py --device cpu --steps 20 --repeats 3 --outdir artifacts
 python scripts/run_flow_matching_experiment.py --device cpu --train-steps 96 --sample-count 128 --outdir artifacts
+python scripts/run_cnn_experiment.py --device cpu --train-steps 80 --outdir artifacts
 python scripts/run_experiments.py --outdir artifacts
 python scripts/run_benchmarks.py --outdir artifacts
 ```
